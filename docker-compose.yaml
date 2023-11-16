@@ -1,0 +1,35 @@
+services:
+  mysql:
+    image: "glf9832/mysql-xtrabackup:8.0.28"
+    ports:
+      - "3306:3306"
+    expose:
+      - 3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+    restart: always
+    volumes:
+      - mysql_data:/var/lib/mysql
+  backuper:
+    image: "glf9832/xtrabackup:8.0.28"
+    ports:
+      - "2222:22"
+    expose:
+      - 22
+    restart: always
+    volumes:
+      - backup_data:/data
+      - ./client.cnf:/etc/mysql/conf.d/client.cnf
+volumes:
+  mysql_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./.testdata/mysqldata
+      o: bind
+  backup_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./.testdata/backupdata
+      o: bind
