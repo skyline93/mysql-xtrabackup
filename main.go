@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type BackupResult struct {
@@ -73,8 +74,17 @@ func (b *Backuper) Backup(dataPath string, targetPath string, logStart string) (
 
 	args := append(append(backupArgs, []string{"|"}...), streamArgs...)
 
-	err := b.runCmd("ssh", fmt.Sprintf("%s@%s", b.dbUser, b.dbHostName), strings.Join(args, " "))
+	logFile, err := os.Create(fmt.Sprintf("xtrabackup-%s.log", time.Now().Format("20060102150405")))
 	if err != nil {
+		return nil, err
+	}
+	defer logFile.Close()
+
+	cmd := exec.Command("ssh", fmt.Sprintf("%s@%s", b.dbUser, b.dbHostName), strings.Join(args, " "))
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+
+	if err := cmd.Run(); err != nil {
 		return nil, err
 	}
 
@@ -98,21 +108,6 @@ func (b *Backuper) Backup(dataPath string, targetPath string, logStart string) (
 		LogStart: checkpoints["from_lsn"],
 		LogEnd:   checkpoints["to_lsn"],
 	}, nil
-}
-
-func (b *Backuper) runCmd(command string, args ...string) error {
-	cmd := exec.Command(command, args...)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err := cmd.Run()
-	if err != nil {
-		log.Printf("run command failed, err: %s", err)
-		return err
-	}
-
-	return nil
 }
 
 func (b *Backuper) parseCheckpoints(content string) (map[string]string, error) {
