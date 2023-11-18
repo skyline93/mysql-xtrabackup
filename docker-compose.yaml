@@ -10,6 +10,7 @@ services:
     restart: always
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./mysql/conf.d/my.cnf:/etc/mysql/conf.d/my.cnf
   backuper:
     image: "hubharbor.com/library/xtrabackup:8.0.28-1"
     ports:
