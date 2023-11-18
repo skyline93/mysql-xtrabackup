@@ -28,7 +28,7 @@ while true; do
     name=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1)
 
     # 插入数据
-    mysql --login-path=$login_path $dbname -e "INSERT INTO $tbname (name) VALUES ('$name');"
+    mysql --login-path=$login_path $dbname -e "INSERT INTO $tbname (name) VALUES ('$name');COMMIT;"
 
     # 获取当前时间戳
     timestamp=$(date +"%Y-%m-%d %H:%M:%S")

@@ -3,7 +3,7 @@ ARG MYSQL_VERSION=8.0.28
 FROM mysql:$MYSQL_VERSION-debian
 
 RUN apt-get update \
-    && apt-get install -y wget openssh-server git vim telnet libdbd-mysql-perl
+    && apt-get install -y wget curl sudo openssh-server git vim telnet libdbd-mysql-perl
 
 COPY ./authorized_keys /root/.ssh/authorized_keys
 COPY ./id_rsa /root/.ssh/id_rsa
@@ -21,6 +21,12 @@ RUN mkdir /run/sshd \
 
 ARG XTRABACKUP_VERSION=8.0.28-21
 ARG GLIBC=2.17
+
+RUN curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb \
+    && apt-get install gnupg2 lsb-release ./percona-release_latest.generic_all.deb \
+    && percona-release enable tools \
+    && apt-get update \
+    && apt-get install qpress
 
 RUN wget https://downloads.percona.com/downloads/Percona-XtraBackup-8.0/Percona-XtraBackup-$XTRABACKUP_VERSION/binary/tarball/percona-xtrabackup-$XTRABACKUP_VERSION-Linux-x86_64.glibc$GLIBC-minimal.tar.gz \
     && tar -xvf percona-xtrabackup-${XTRABACKUP_VERSION}-Linux-x86_64.glibc$GLIBC-minimal.tar.gz \

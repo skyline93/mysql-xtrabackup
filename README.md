@@ -16,40 +16,47 @@ ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --l
 ```
 
 ```bash
-ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress --incremental-lsn=28648031 | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/i2-1"'
+ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress --incremental-lsn=28798178 | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/i2-1"'
 ```
 
 ```bash
-ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress --incremental-lsn=28648031 | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/i3-1"'
+ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress --incremental-lsn=28798178 | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/i3-1"'
 ```
 
 ```bash
-ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress --incremental-lsn=28648031 | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/i4-1"'
+ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress --incremental-lsn=28798178 | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/i4-1"'
+```
+
+```bash
+ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress --incremental-lsn=29249757 | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/i5-1"'
 ```
 
 恢复
 ```bash
-/usr/local/xtrabackup/bin/xtrabackup --decompress --remove-original --target-dir=/target/path
+/usr/local/xtrabackup/bin/xtrabackup --decompress --remove-original --target-dir=/data/restore/f1
+/usr/local/xtrabackup/bin/xtrabackup --decompress --remove-original --target-dir=/data/restore/i2-1
 ```
 
 ```bash
-/usr/local/xtrabackup/bin/xtrabackup --prepare --apply-log-only --target-dir=/target/path 
-/usr/local/xtrabackup/bin/xtrabackup --prepare --apply-log-only --target-dir=/target/path --incremental-dir=/incr/path
+/usr/local/xtrabackup/bin/xtrabackup --prepare --apply-log-only --target-dir=/data/restore/f1 
+/usr/local/xtrabackup/bin/xtrabackup --prepare --apply-log-only --target-dir=/data/restore/f1 --incremental-dir=/data/restore/i2-1
 ```
 
 ```vim
+cat << EOF > my.cnf
 [mysqld]
-basedir=
-datadir=
-socket=
-pid-file=
-port=
+basedir=/usr/bin/mysql
+datadir=/data/restore/f1
+socket=/data/restore/mysql.sock
+pid-file=/data/restore/mysql.pid
+port=3308
+EOF
 ```
 
 ```bash
-sudo chown -R mysql:mysql /target/path
+sudo chown -R mysql:mysql /data/restore
 ```
 
 ```bash
-sudo -u mysql mysqld --defaults-file=my.cnf
+sudo -u mysql mysqld_safe --defaults-file=/data/restore/my.cnf
 ```
