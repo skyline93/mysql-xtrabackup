@@ -1,6 +1,6 @@
 services:
   mysql:
-    image: "glf9832/mysql-xtrabackup:8.0.28"
+    image: "hubharbor.com/library/mysql-xtrabackup:8.0.28-1"
     ports:
       - "3306:3306"
     expose:
@@ -11,7 +11,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
   backuper:
-    image: "glf9832/xtrabackup:8.0.28"
+    image: "hubharbor.com/library/xtrabackup:8.0.28-1"
     ports:
       - "2222:22"
     expose:

@@ -8,10 +8,16 @@ build-backuper:
 
 up:
 	mkdir -p .testdata/mysqldata .testdata/backupdata
-	docker compose up -d
+	docker-compose up -d
 
 down:
-	docker compose down
+	docker-compose down
+
+exec-backuper:
+	docker-compose exec -it backuper bash
+
+exec-mysql:
+	docker-compose exec -it mysql bash
 
 clean: down
 	rm -rf .testdata

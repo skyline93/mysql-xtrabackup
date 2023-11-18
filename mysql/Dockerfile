@@ -3,7 +3,7 @@ ARG MYSQL_VERSION=8.0.28
 FROM mysql:$MYSQL_VERSION-debian
 
 RUN apt-get update \
-    && apt-get install -y wget openssh-server vim telnet libdbd-mysql-perl
+    && apt-get install -y wget openssh-server git vim telnet libdbd-mysql-perl
 
 COPY ./authorized_keys /root/.ssh/authorized_keys
 COPY ./id_rsa /root/.ssh/id_rsa
@@ -14,7 +14,9 @@ RUN mkdir /run/sshd \
     && echo '    StrictHostKeyChecking no' >> /etc/ssh/ssh_config \
     && chmod 700 /root/.ssh \
     && chmod 600 /root/.ssh/authorized_keys \
-    && echo 'root:123456' | chpasswd
+    && chmod 600 /root/.ssh/id_rsa \
+    && echo 'root:123456' | chpasswd \
+    && echo "alias ll='ls -l'" >> /root/.bashrc
 
 ARG XTRABACKUP_VERSION=8.0.28-21
 ARG GLIBC=2.17
@@ -25,6 +27,8 @@ RUN wget https://downloads.percona.com/downloads/Percona-XtraBackup-8.0/Percona-
     && rm -rf percona-xtrabackup-$XTRABACKUP_VERSION-Linux-x86_64.glibc$GLIBC-minimal.tar.gz
 
 ENV PATH=$PATH:/usr/local/xtrabackup/bin
+
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
