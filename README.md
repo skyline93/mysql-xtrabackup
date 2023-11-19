@@ -12,7 +12,7 @@ mysql --login-path=local
 
 备份
 ```bash
-ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress=lz4 | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/backup/f1"'
+ssh root@mysql '/usr/local/xtrabackup/bin/xtrabackup --backup --throttle=400 --login-path=local --datadir='/var/lib/mysql' --stream=xbstream --compress | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x -C /data/backup/f1"'
 ```
 
 ```bash
