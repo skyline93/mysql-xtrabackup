@@ -16,19 +16,20 @@ RUN mkdir /run/sshd \
     && chmod 700 /root/.ssh \
     && chmod 600 /root/.ssh/authorized_keys \
     && chmod 600 /root/.ssh/id_rsa \
-    && chmod 600 /root/.ssh/.mylogin.cnf \
+    && chmod 600 /root/.mylogin.cnf \
     && echo 'root:123456' | chpasswd \
-    && echo "alias ll='ls -l'" >> /root/.bashrc
+    && echo "alias ll='ls -l'" >> /root/.bashrc \
+    && echo 'set mouse-=a' >> /usr/share/vim/vim81/defaults.vim \
     && mkdir /data
 
 ARG XTRABACKUP_VERSION=8.0.28-21
 ARG GLIBC=2.17
 
 RUN curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb \
-    && apt-get install gnupg2 lsb-release ./percona-release_latest.generic_all.deb \
+    && apt-get install -y gnupg2 lsb-release ./percona-release_latest.generic_all.deb \
     && percona-release enable tools \
     && apt-get update \
-    && apt-get install qpress
+    && apt-get install -y qpress
 
 RUN wget https://downloads.percona.com/downloads/Percona-XtraBackup-8.0/Percona-XtraBackup-$XTRABACKUP_VERSION/binary/tarball/percona-xtrabackup-$XTRABACKUP_VERSION-Linux-x86_64.glibc$GLIBC-minimal.tar.gz \
     && tar -xvf percona-xtrabackup-${XTRABACKUP_VERSION}-Linux-x86_64.glibc$GLIBC-minimal.tar.gz \
