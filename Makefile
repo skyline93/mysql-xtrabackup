@@ -1,10 +1,10 @@
 build: build-mysql build-backuper
 
 build-mysql:
-	docker build -t glf9832/mysql-xtrabackup:8.0.28-test ./mysql
+	docker build -t glf9832/mysql-xtrabackup:8.0.28-3 ./mysql
 
 build-backuper:
-	docker build -t glf9832/xtrabackup:8.0.28-test ./backuper
+	docker build -t glf9832/xtrabackup:8.0.28-3 ./backuper
 
 up:
 	mkdir -p .testdata/mysqldata .testdata/backupdata .testdata/restoredata
@@ -23,4 +23,5 @@ exec-mysql:
 	docker-compose exec -it mysql bash
 
 clean: down
-	rm -rf .testdata
+	sudo rm -rf .testdata
+	docker volume rm mysql-xtrabackup_backup_data mysql-xtrabackup_restore_data mysql-xtrabackup_mysql_data

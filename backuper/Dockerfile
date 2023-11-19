@@ -23,6 +23,7 @@ ENV PATH=$PATH:/usr/local/xtrabackup/bin
 RUN apt-get install -y sshpass
 
 ARG PASSWORD='root:Y3+qoXfJj^'
+COPY ./init.sh /usr/local/bin/init.sh
 
 RUN mkdir /run/sshd \
     && echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config \
@@ -30,7 +31,8 @@ RUN mkdir /run/sshd \
     && echo "alias ll='ls -l'" >> /root/.bashrc \
     && echo 'set mouse-=a' >> /usr/share/vim/vim81/defaults.vim \
     && ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa \
-    && echo $PASSWORD | chpasswd
+    && echo $PASSWORD | chpasswd \
+    && chmod +x /usr/local/bin/init.sh
 
 WORKDIR /root
 

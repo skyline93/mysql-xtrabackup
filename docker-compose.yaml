@@ -1,6 +1,6 @@
 services:
   mysql:
-    image: "glf9832/mysql-xtrabackup:8.0.28-test"
+    image: "glf9832/mysql-xtrabackup:8.0.28-3"
     ports:
       - "3306:3306"
     expose:
@@ -12,7 +12,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./mysql/conf.d/my.cnf:/etc/mysql/conf.d/my.cnf
   backuper:
-    image: "glf9832/xtrabackup:8.0.28-test"
+    image: "glf9832/xtrabackup:8.0.28-3"
     ports:
       - "2222:22"
     expose:
@@ -21,7 +21,7 @@ services:
     volumes:
       - backup_data:/data/backup
   restorer:
-    image: "glf9832/xtrabackup:8.0.28-test"
+    image: "glf9832/xtrabackup:8.0.28-3"
     ports:
       - "3308:3306"
     restart: always
