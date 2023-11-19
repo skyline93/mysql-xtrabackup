@@ -3,11 +3,12 @@ ARG MYSQL_VERSION=8.0.28
 FROM mysql:$MYSQL_VERSION-debian
 
 RUN apt-get update \
-    && apt-get install -y wget curl sudo openssh-server git vim telnet libdbd-mysql-perl
+    && apt-get install -y wget curl sudo openssh-server git vim telnet iputils-ping net-tools iproute2 libdbd-mysql-perl
 
 COPY ./authorized_keys /root/.ssh/authorized_keys
 COPY ./id_rsa /root/.ssh/id_rsa
 COPY ./id_rsa.pub /root/.ssh/id_rsa.pub
+COPY ./.mylogin.cnf /root/.mylogin.cnf
 
 RUN mkdir /run/sshd \
     && echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config \
@@ -15,6 +16,7 @@ RUN mkdir /run/sshd \
     && chmod 700 /root/.ssh \
     && chmod 600 /root/.ssh/authorized_keys \
     && chmod 600 /root/.ssh/id_rsa \
+    && chmod 600 /root/.ssh/.mylogin.cnf \
     && echo 'root:123456' | chpasswd \
     && echo "alias ll='ls -l'" >> /root/.bashrc
 
