@@ -1,10 +1,10 @@
 build: build-mysql build-backuper
 
 build-mysql:
-	docker build -t glf9832/mysql-xtrabackup:8.0.28 ./mysql
+	docker build -t glf9832/mysql-xtrabackup:8.0.28-test ./mysql
 
 build-backuper:
-	docker build -t glf9832/xtrabackup:8.0.28 ./backuper
+	docker build -t glf9832/xtrabackup:8.0.28-test ./backuper
 
 up:
 	mkdir -p .testdata/mysqldata .testdata/backupdata .testdata/restoredata

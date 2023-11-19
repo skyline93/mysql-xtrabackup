@@ -20,22 +20,19 @@ RUN apt-get update \
 
 ENV PATH=$PATH:/usr/local/xtrabackup/bin
 
-COPY ./authorized_keys /root/.ssh/authorized_keys
-COPY ./id_rsa /root/.ssh/id_rsa
-COPY ./id_rsa.pub /root/.ssh/id_rsa.pub
-COPY ./.mylogin.cnf /root/.mylogin.cnf
+RUN apt-get install -y sshpass
+
+ARG PASSWORD='root:123456'
 
 RUN mkdir /run/sshd \
-    && mkdir /var/lib/mysql-files \
     && echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config \
     && echo '    StrictHostKeyChecking no' >> /etc/ssh/ssh_config \
-    && chmod 700 /root/.ssh \
-    && chmod 600 /root/.ssh/authorized_keys \
-    && chmod 600 /root/.ssh/id_rsa \
-    && chmod 600 /root/.mylogin.cnf \
-    && echo 'root:123456' | chpasswd \
     && echo "alias ll='ls -l'" >> /root/.bashrc \
-    && echo 'set mouse-=a' >> /usr/share/vim/vim81/defaults.vim
+    && echo 'set mouse-=a' >> /usr/share/vim/vim81/defaults.vim \
+    && ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa \
+    && echo $PASSWORD | chpasswd
+
+WORKDIR /root
 
 EXPOSE 22
 CMD ["/usr/sbin/sshd", "-D"]
