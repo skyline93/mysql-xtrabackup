@@ -19,8 +19,15 @@ services:
       - 22
     restart: always
     volumes:
-      - backup_data:/data
+      - backup_data:/data/backup
       - ./client.cnf:/etc/mysql/conf.d/client.cnf
+  restorer:
+    image: "hubharbor.com/library/xtrabackup:8.0.28-1"
+    ports:
+      - "3308:3306"
+    restart: always
+    volumes:
+      - restore_data:/data/restore
 volumes:
   mysql_data:
     driver: local
@@ -33,4 +40,10 @@ volumes:
     driver_opts:
       type: none
       device: ./.testdata/backupdata
+      o: bind
+  restore_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./.testdata/restoredata
       o: bind
