@@ -22,7 +22,7 @@ ENV PATH=$PATH:/usr/local/xtrabackup/bin
 
 RUN apt-get install -y sshpass
 
-ARG PASSWORD='root:123456'
+ARG PASSWORD='root:Y3+qoXfJj^'
 
 RUN mkdir /run/sshd \
     && echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config \
