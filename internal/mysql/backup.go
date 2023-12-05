@@ -1,4 +1,4 @@
-package main
+package mysql
 
 import (
 	"bufio"
@@ -148,35 +148,12 @@ func (b *Backuper) getBackupSize(targetPath string) (uint64, error) {
 	return size, nil
 }
 
-func main() {
-	loginPath := "local"
-	throttle := 400
-	tryCompress := true
-	binPath := "/usr/local/xtrabackup/bin"
-	dbHostName := "mysql"
-	dbUser := "root"
-	backupHostName := "backuper"
-	backupUser := "root"
-
-	dataPath := "/var/lib/mysql"
-	targetPath := "/data/f1"
-	logStart := ""
-
-	backuper := NewBackuper(
-		loginPath,
-		throttle,
-		tryCompress,
-		binPath,
-		dbHostName,
-		dbUser,
-		backupHostName,
-		backupUser,
-	)
-
-	res, err := backuper.Backup(dataPath, targetPath, logStart)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("%s", res)
+type Config struct {
+	Identifer   string
+	Version     string
+	LoginPath   string
+	DbHostName  string
+	DbUser      string
+	Throttle    int
+	TryCompress bool
 }
