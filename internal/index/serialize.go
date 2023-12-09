@@ -1,161 +1,256 @@
 package index
 
 import (
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
-type Node struct {
+var load_helper map[string]interface{}
+
+func addr(p interface{}) string {
+	return fmt.Sprintf("%p", p)
+}
+
+type JsonBackupSet struct {
+	Addr string `json:"addr"`
 	Id   string `json:"id"`
-	Prev string `json:"prev"`
-	Next string `json:"next"`
 	Path string `json:"path"`
 	Type string `json:"type"`
+	Prev string `json:"prev"`
+	Next string `json:"next"`
 }
 
-type LinkedList struct {
-	Id    string           `json:"id"`
-	Prev  string           `json:"prev"`
-	Next  string           `json:"next"`
-	Nodes map[string]*Node `json:"nodes"`
-}
-
-type RepoMarshal struct {
-	Id    string                 `json:"id"`
-	Start string                 `json:"start"`
-	Index map[string]*LinkedList `json:"index"`
-}
-
-func (bs *BackupSet) convertNode() *Node {
+func (bs *BackupSet) MarshalJSON() ([]byte, error) {
 	prevId := ""
 	nextId := ""
 
 	if bs.Prev != nil {
-		prevId = bs.Prev.Id
+		prevId = addr(bs.Prev)
 	}
 
 	if bs.Next != nil {
-		nextId = bs.Next.Id
+		nextId = addr(bs.Next)
 	}
 
-	return &Node{
+	return json.Marshal(&JsonBackupSet{
+		Addr: addr(bs),
 		Id:   bs.Id,
-		Prev: prevId,
-		Next: nextId,
 		Path: bs.Path,
 		Type: bs.Type,
+		Prev: prevId,
+		Next: nextId,
+	})
+}
+
+func (bs *BackupSet) UnmarshalJSON(data []byte) error {
+	aux := &JsonBackupSet{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
 	}
+
+	bs.Id = aux.Id
+	bs.Path = aux.Path
+	bs.Type = aux.Type
+
+	load_helper[aux.Addr] = bs
+	return nil
 }
 
-func (bs *BackupSet) MarshalJSON() ([]byte, error) {
-	return json.Marshal(bs.convertNode())
+type JsonBackupCycle struct {
+	Addr       string   `json:"addr"`
+	Id         string   `json:"id"`
+	BackupSets []string `json:"backupsets"`
+	Prev       string   `json:"prev"`
+	Next       string   `json:"next"`
 }
 
-func (bc *BackupCycle) convertLinkedList() *LinkedList {
+func (bc *BackupCycle) MarshalJSON() ([]byte, error) {
 	prevId := ""
 	nextId := ""
 
 	if bc.Prev != nil {
-		prevId = bc.Prev.Id
+		prevId = addr(bc.Prev)
 	}
 
 	if bc.Next != nil {
-		nextId = bc.Next.Id
+		nextId = addr(bc.Next)
 	}
 
-	nodes := map[string]*Node{}
-
-	for _, bs := range bc.BackupSets {
-		nodes[bs.Id] = bs.convertNode()
+	var record_ids []string
+	for _, r := range bc.BackupSets {
+		record_ids = append(record_ids, addr(r))
 	}
 
-	return &LinkedList{
-		Id:    bc.Id,
-		Prev:  prevId,
-		Next:  nextId,
-		Nodes: nodes,
-	}
+	return json.Marshal(&JsonBackupCycle{
+		Addr:       addr(bc),
+		Id:         bc.Id,
+		BackupSets: record_ids,
+		Prev:       prevId,
+		Next:       nextId,
+	})
 }
 
-func (bc *BackupCycle) MarshalJSON() ([]byte, error) {
-	return json.Marshal(bc.convertLinkedList())
+func (bc *BackupCycle) UnmarshalJSON(data []byte) error {
+	aux := &JsonBackupCycle{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	bc.Id = aux.Id
+	for _, record_id := range aux.BackupSets {
+		bc.BackupSets = append(bc.BackupSets, load_helper[record_id].(*BackupSet))
+	}
+	load_helper[aux.Addr] = bc
+
+	return nil
+}
+
+type JsonRepo struct {
+	Addr         string   `json:"addr"`
+	Id           string   `json:"id"`
+	BackupCycles []string `json:"backupcycles"`
 }
 
 func (r *Repo) MarshalJSON() ([]byte, error) {
-	var bcs = make(map[string]*LinkedList)
-
-	for _, bc := range r.BackupCycles {
-		bcs[bc.Id] = bc.convertLinkedList()
+	var record_ids []string
+	for _, r := range r.BackupCycles {
+		record_ids = append(record_ids, addr(r))
 	}
 
-	repoMarshal := RepoMarshal{Id: r.Id, Start: r.BackupCycles[0].Id, Index: bcs}
-	return json.Marshal(repoMarshal)
+	return json.Marshal(&JsonRepo{
+		Addr:         addr(r),
+		Id:           r.Id,
+		BackupCycles: record_ids,
+	})
 }
 
 func (r *Repo) UnmarshalJSON(data []byte) error {
-	var rm = &RepoMarshal{}
-	err := json.Unmarshal(data, rm)
-	if err != nil {
+	aux := &JsonRepo{}
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 
-	r.Id = rm.Id
+	r.Id = aux.Id
+	for _, record_id := range aux.BackupCycles {
+		r.BackupCycles = append(r.BackupCycles, load_helper[record_id].(*BackupCycle))
+	}
+	load_helper[aux.Addr] = r
+	return nil
+}
 
-	for {
-		l := rm.Index[rm.Start]
-		bc := &BackupCycle{Id: l.Id, BackupSets: make([]*BackupSet, 0)}
-		for {
-			n := l.Nodes[l.Id]
-			bs := &BackupSet{Id: n.Id, Path: n.Path, Type: n.Type}
-			bc.Insert(bs)
-			if n.Next == "" {
-				break
-			}
-		}
+type State struct {
+	BackupSets   map[string]*BackupSet
+	BackupCycles map[string]*BackupCycle
+	Repos        map[string]*Repo
+}
 
-		r.BackupCycles = append(r.BackupCycles, bc)
+func NewState() *State {
+	s := &State{}
+	s.BackupSets = make(map[string]*BackupSet)
+	s.BackupCycles = make(map[string]*BackupCycle)
+	s.Repos = make(map[string]*Repo)
+	return s
+}
 
-		if l.Next == "" {
-			break
-		}
+func (s *State) AddBackupSet(backupSet *BackupSet) {
+	s.BackupSets[addr(backupSet)] = backupSet
+}
+
+func (s *State) AddBackupCycle(backupCycle *BackupCycle) {
+	s.BackupCycles[addr(backupCycle)] = backupCycle
+}
+
+func (s *State) AddRepo(repo *Repo) {
+	s.Repos[addr(repo)] = repo
+}
+
+// func SaveRepo(repo *Repo, path string) error {
+// 	state := NewState()
+// 	state.AddRepo(repo)
+
+// 	for _, bc := range repo.BackupCycles {
+// 		state.AddBackupCycle(bc)
+// 		for _, bs := range bc.BackupSets {
+// 			state.AddBackupSet(bs)
+// 		}
+// 	}
+
+// 	d, err := json.MarshalIndent(state, "", "    ")
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	os.WriteFile(path, []byte(d), 0664)
+// 	return nil
+// }
+
+// func LoadRepo(path string) (*Repo, error) {
+// 	d, err := os.ReadFile(path)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	load_helper = make(map[string]interface{})
+// 	state := NewState()
+// 	if err := json.Unmarshal(d, state); err != nil {
+// 		return nil, err
+// 	}
+
+// 	maps := make(map[string]interface{})
+// 	if err = json.Unmarshal(d, &maps); err != nil {
+// 		return nil, err
+// 	}
+
+// 	repo := &Repo{}
+// 	for _, r := range state.Repos {
+// 		repo = r
+// 	}
+
+// 	// for _, bc := range repo.BackupCycles{
+// 	// maps["BackupCycles"]
+// 	// if bc.Id
+// 	// }
+
+// 	return repo, nil
+// }
+
+func SaveRepo(repo *Repo, path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := gob.NewEncoder(file)
+	err = encoder.Encode(repo)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func SaveToFile(repo *Repo, path string) error {
-	p, err := filepath.Abs(path)
+func LoadRepo(path string) (*Repo, error) {
+	gob.Register(&BackupSet{})
+	gob.Register(&BackupCycle{})
+	gob.Register(&Repo{})
+
+	var repo *Repo
+
+	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := gob.NewDecoder(file)
+	err = decoder.Decode(&repo)
+	if err != nil {
+		return nil, err
 	}
 
-	filePath := filepath.Join(p, fmt.Sprintf("%s.json", repo.Id))
-
-	v, err := json.Marshal(repo)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(filePath, v, 0664)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func LoadFromFile(repo *Repo, path string) error {
-	p, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-
-	data, err := os.ReadFile(p)
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(data, repo)
+	fmt.Println("链表已从文件加载:", path)
+	return repo, nil
 }

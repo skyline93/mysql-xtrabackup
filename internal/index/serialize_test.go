@@ -1,6 +1,8 @@
 package index
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -41,14 +43,17 @@ func TestSerialize(t *testing.T) {
 	repo.Insert(bc2)
 	repo.Insert(bc3)
 
-	err := SaveToFile(repo, "./")
+	path, err := filepath.Abs(filepath.Join("./", fmt.Sprintf("%s.json", repo.Id)))
+	assert.Nil(t, err)
+	err = SaveRepo(repo, path)
 	assert.Nil(t, err)
 
 	// os.Remove(fmt.Sprintf("%s.json", repo.Id))
 }
 
 func TestUnserialize(t *testing.T) {
-	var repo *Repo
-	err := LoadFromFile(repo, "24680.json")
+	repo, err := LoadRepo("24680.json")
 	assert.Nil(t, err)
+
+	assert.Equal(t, "24680", repo.Id)
 }

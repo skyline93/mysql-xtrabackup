@@ -1,245 +1,307 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
+	"bytes"
+	"encoding/gob"
 	"fmt"
-	"log"
-	"strings"
+	"os"
+
+	"github.com/google/uuid"
 )
 
-type User struct {
-	Name  string
-	Email string
-}
-type JsonUser struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+type BackupSet struct {
+	Id   string
+	Path string
+	Type string
+	Prev *BackupSet
+	Next *BackupSet
 }
 
-func (u *User) Print(level int) {
-	ident := strings.Repeat("-", level)
-	log.Println(ident, "Username:", u.Name, u.Email)
-}
-func (u *User) Id() string {
-	return fmt.Sprintf("%p", u)
-}
-func (u *User) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&JsonUser{
-		ID:    u.Id(),
-		Name:  u.Name,
-		Email: u.Email,
-	})
-}
-func (u *User) UnmarshalJSON(data []byte) error {
-	aux := &JsonUser{}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	u.Name = aux.Name
-	u.Email = aux.Email
-	load_helper[aux.ID] = u
-	log.Println("Added user with id ", aux.ID, u.Name)
-	return nil
+type BackupCycle struct {
+	Id         string
+	BackupSets []*BackupSet
+	Prev       *BackupCycle
+	Next       *BackupCycle
 }
 
-type Record struct {
-	Type     string // MX / A / CNAME / TXT / REDIR / SVR
-	Name     string // @ / www
-	Host     string // IP / address
-	Priority int    // Used for MX
-	Port     int    // Used for SVR
-}
-type JsonRecord struct {
-	ID       string
-	Type     string
-	Name     string
-	Host     string
-	Priority int
-	Port     int
+type Repo struct {
+	id           string
+	backupCycles []*BackupCycle
 }
 
-func (r *Record) Print(level int) {
-	ident := strings.Repeat("-", level)
-	log.Println(ident, "", r.Type, r.Name, r.Host)
-}
-func (r *Record) Id() string {
-	return fmt.Sprintf("%p", r)
-}
-func (r *Record) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&JsonRecord{
-		ID:       r.Id(),
-		Name:     r.Name,
-		Type:     r.Type,
-		Host:     r.Host,
-		Priority: r.Priority,
-		Port:     r.Port,
-	})
-}
-func (r *Record) UnmarshalJSON(data []byte) error {
-	aux := &JsonRecord{}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
+func NewBackupSet(path string, backupSetType string) *BackupSet {
+	return &BackupSet{
+		Id:   uuid.New().String(),
+		Path: path,
+		Type: backupSetType,
 	}
-	r.Name = aux.Name
-	r.Type = aux.Type
-	r.Host = aux.Host
-	r.Priority = aux.Priority
-	r.Port = aux.Port
-	load_helper[aux.ID] = r
-	log.Println("Added record with id ", aux.ID, r.Name)
-	return nil
 }
 
-type Domain struct {
-	Name    string
-	User    *User     // User ID
-	Records []*Record // Record ID's
-}
-type JsonDomain struct {
-	ID      string   `json:"id"`
-	Name    string   `json:"name"`
-	User    string   `json:"user"`
-	Records []string `json:"records"`
+func NewBackupCycle() *BackupCycle {
+	return &BackupCycle{}
 }
 
-func (d *Domain) Print(level int) {
-	ident := strings.Repeat("-", level)
-	log.Println(ident, "Domain:", d.Name)
-	d.User.Print(level + 1)
-	log.Println(ident, " Records:")
-	for _, r := range d.Records {
-		r.Print(level + 2)
+func (bc *BackupCycle) Insert(backupSet *BackupSet) {
+	backupSet.Prev = bc.Tail()
+	if bc.Tail() != nil {
+		bc.Tail().Next = backupSet
 	}
+	bc.BackupSets = append(bc.BackupSets, backupSet)
 }
-func (d *Domain) Id() string {
-	return fmt.Sprintf("%p", d)
-}
-func (d *Domain) MarshalJSON() ([]byte, error) {
-	var record_ids []string
-	for _, r := range d.Records {
-		record_ids = append(record_ids, r.Id())
-	}
-	return json.Marshal(JsonDomain{
-		ID:      d.Id(),
-		Name:    d.Name,
-		User:    d.User.Id(),
-		Records: record_ids,
-	})
-}
-func (d *Domain) UnmarshalJSON(data []byte) error {
-	log.Println("UnmarshalJSON domain")
-	aux := &JsonDomain{}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	d.Name = aux.Name
-	d.User = load_helper[aux.User].(*User) // restore pointer to domains user
-	for _, record_id := range aux.Records {
-		d.Records = append(d.Records, load_helper[record_id].(*Record))
+
+func (bc *BackupCycle) Head() *BackupSet {
+	if len(bc.BackupSets) > 0 {
+		return bc.BackupSets[0]
 	}
 	return nil
 }
 
-type State struct {
-	Users   map[string]*User
-	Records map[string]*Record
-	Domains map[string]*Domain
+func (bc *BackupCycle) Tail() *BackupSet {
+	if len(bc.BackupSets) > 0 {
+		return bc.BackupSets[len(bc.BackupSets)-1]
+	}
+	return nil
 }
 
-func NewState() *State {
-	s := &State{}
-	s.Users = make(map[string]*User)
-	s.Domains = make(map[string]*Domain)
-	s.Records = make(map[string]*Record)
-	return s
+func NewRepo(Id string) *Repo {
+	return &Repo{id: Id}
 }
-func (s *State) Print() {
-	log.Println("State:")
-	log.Println("Users:")
-	for _, u := range s.Users {
-		u.Print(1)
+
+func (r *Repo) Insert(backupCycle *BackupCycle) {
+	backupCycle.Prev = r.Tail()
+	if r.Tail() != nil {
+		r.Tail().Next = backupCycle
 	}
-	log.Println("Domains:")
-	for _, d := range s.Domains {
-		d.Print(1)
+	r.backupCycles = append(r.backupCycles, backupCycle)
+}
+
+func (r *Repo) Head() *BackupCycle {
+	if len(r.backupCycles) > 0 {
+		return r.backupCycles[0]
 	}
+	return nil
 }
-func (s *State) NewUser(name string, email string) *User {
-	u := &User{Name: name, Email: email}
-	id := fmt.Sprintf("%p", u)
-	s.Users[id] = u
-	return u
+
+func (r *Repo) Tail() *BackupCycle {
+	if len(r.backupCycles) > 0 {
+		return r.backupCycles[len(r.backupCycles)-1]
+	}
+	return nil
 }
-func (s *State) NewDomain(user *User, name string) *Domain {
-	d := &Domain{Name: name, User: user}
-	s.Domains[d.Id()] = d
-	return d
+
+func init() {
+	gob.Register(&BackupSet{})
+	gob.Register(&BackupCycle{})
+	gob.Register(&Repo{})
 }
-func (s *State) NewMxRecord(d *Domain, rtype string, name string, host string, priority int) *Record {
-	r := &Record{Type: rtype, Name: name, Host: host, Priority: priority}
-	d.Records = append(d.Records, r)
-	s.Records[r.Id()] = r
-	return r
+
+// Custom serialization for BackupSet
+func (bs *BackupSet) GobEncode() ([]byte, error) {
+	var bsCopy BackupSet
+	bsCopy.Id = bs.Id
+	bsCopy.Path = bs.Path
+	bsCopy.Type = bs.Type
+	// Exclude Prev and Next to avoid circular references
+	return gobEncode(bsCopy)
 }
-func (s *State) FindDomain(name string) (*Domain, error) {
-	for _, v := range s.Domains {
-		if v.Name == name {
-			return v, nil
+
+// Custom deserialization for BackupSet
+func (bs *BackupSet) GobDecode(data []byte) error {
+	var bsCopy BackupSet
+	if err := gobDecode(data, &bsCopy); err != nil {
+		return err
+	}
+	bs.Id = bsCopy.Id
+	bs.Path = bsCopy.Path
+	bs.Type = bsCopy.Type
+	return nil
+}
+
+// Custom serialization for BackupCycle
+func (bc *BackupCycle) GobEncode() ([]byte, error) {
+	var bcCopy BackupCycle
+	bcCopy.Id = bc.Id
+	// Exclude Prev and Next to avoid circular references
+	return gobEncode(bcCopy)
+}
+
+// Custom deserialization for BackupCycle
+func (bc *BackupCycle) GobDecode(data []byte) error {
+	var bcCopy BackupCycle
+	if err := gobDecode(data, &bcCopy); err != nil {
+		return err
+	}
+	bc.Id = bcCopy.Id
+	return nil
+}
+
+// Custom serialization for Repo
+func (r *Repo) GobEncode() ([]byte, error) {
+	var rCopy Repo
+	rCopy.id = r.id
+	// Exclude Prev and Next to avoid circular references
+	return gobEncode(rCopy)
+}
+
+// Custom deserialization for Repo
+func (r *Repo) GobDecode(data []byte) error {
+	var rCopy Repo
+	if err := gobDecode(data, &rCopy); err != nil {
+		return err
+	}
+	r.id = rCopy.id
+	return nil
+}
+
+// gobEncode encodes the object to bytes
+func gobEncode(obj interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(obj)
+	return buf.Bytes(), err
+}
+
+// gobDecode decodes bytes to the object
+func gobDecode(data []byte, obj interface{}) error {
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	return dec.Decode(obj)
+}
+
+// IDToObject 映射 ID 到对象的映射
+var IDToObject = make(map[string]interface{})
+
+// 序列化Repo到文件
+func serializeRepo(filename string, repo *Repo) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := gob.NewEncoder(file)
+
+	// 清空映射关系
+	IDToObject = make(map[string]interface{})
+
+	// 序列化Repo
+	err = encoder.Encode(repo)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Repo 已序列化到文件:", filename)
+	return nil
+}
+
+// 从文件反序列化Repo
+func deserializeRepo(filename string) (*Repo, error) {
+	var repo Repo
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := gob.NewDecoder(file)
+
+	// 清空映射关系
+	IDToObject = make(map[string]interface{})
+
+	// 反序列化Repo
+	err = decoder.Decode(&repo)
+	if err != nil {
+		return nil, err
+	}
+
+	// 根据ID恢复引用关系
+	resolveReferences(&repo)
+
+	fmt.Println("Repo 已从文件反序列化:", filename)
+	return &repo, nil
+}
+
+// 根据ID恢复引用关系
+func resolveReferences(repo *Repo) {
+	// 根据ID恢复BackupCycles
+	for i, cycle := range repo.backupCycles {
+		repo.backupCycles[i] = restoreBackupCycle(cycle)
+	}
+
+	// 根据ID恢复BackupSets
+	for _, cycle := range repo.backupCycles {
+		for i, set := range cycle.BackupSets {
+			cycle.BackupSets[i] = restoreBackupSet(set)
 		}
 	}
-	return nil, errors.New("Not found")
-}
-func Save(s *State) (string, error) {
-	b, err := json.MarshalIndent(s, "", "    ")
-	if err == nil {
-		return string(b), nil
-	} else {
-		log.Println(err)
-		return "", err
-	}
 }
 
-var load_helper map[string]interface{}
-
-func Load(s *State, blob string) {
-	load_helper = make(map[string]interface{})
-	if err := json.Unmarshal([]byte(blob), s); err != nil {
-		log.Println(err)
-	} else {
-		log.Println("OK")
-	}
+// 根据ID恢复BackupCycle对象
+func restoreBackupCycle(cycle *BackupCycle) *BackupCycle {
+	return restoreObject(cycle.Id, cycle).(*BackupCycle)
 }
 
-func test_state() {
+// 根据ID恢复BackupSet对象
+func restoreBackupSet(set *BackupSet) *BackupSet {
+	return restoreObject(set.Id, set).(*BackupSet)
+}
 
-	s := NewState()
-	u := s.NewUser("Ownername", "some@email.com")
-	d := s.NewDomain(u, "somedomain.com")
-	s.NewMxRecord(d, "MX", "@", "192.168.1.1", 10)
-	s.NewMxRecord(d, "A", "www", "192.168.1.1", 0)
-
-	s.Print()
-
-	x, _ := Save(s) // Saved to json string
-
-	log.Println("State saved, the json string is:")
-	log.Println(x)
-
-	s2 := NewState() // Create a new empty State
-	Load(s2, x)
-	s2.Print()
-
-	d, err := s2.FindDomain("somedomain.com")
-	if err == nil {
-		d.User.Name = "Changed"
-	} else {
-		log.Println("Error:", err)
-	}
-	s2.Print()
+// 根据ID恢复对象
+func restoreObject(id string, obj interface{}) interface{} {
+	IDToObject[id] = obj
+	return obj
 }
 
 func main() {
-	test_state()
+	// 省略其他部分...
+	bs1 := NewBackupSet("/backup/set/path1", "full")
+	bs2 := NewBackupSet("/backup/set/path2", "incr")
+	bs3 := NewBackupSet("/backup/set/path3", "incr")
+
+	bc1 := NewBackupCycle()
+
+	bc1.Insert(bs1)
+	bc1.Insert(bs2)
+	bc1.Insert(bs3)
+
+	bs4 := NewBackupSet("/backup/set/path4", "full")
+	bs5 := NewBackupSet("/backup/set/path5", "incr")
+	bs6 := NewBackupSet("/backup/set/path6", "incr")
+
+	bc2 := NewBackupCycle()
+
+	bc2.Insert(bs4)
+	bc2.Insert(bs5)
+	bc2.Insert(bs6)
+
+	bs7 := NewBackupSet("/backup/set/path4", "full")
+	bs8 := NewBackupSet("/backup/set/path5", "incr")
+	bs9 := NewBackupSet("/backup/set/path6", "incr")
+	bc3 := NewBackupCycle()
+
+	bc3.Insert(bs7)
+	bc3.Insert(bs8)
+	bc3.Insert(bs9)
+
+	repo := NewRepo("24680")
+	repo.Insert(bc1)
+	repo.Insert(bc2)
+	repo.Insert(bc3)
+
+	// 序列化Repo到文件
+	err := serializeRepo("repo.gob", repo)
+	if err != nil {
+		fmt.Println("序列化Repo时出错:", err)
+		return
+	}
+
+	// 从文件反序列化Repo
+	loadedRepo, err := deserializeRepo("repo.gob")
+	if err != nil {
+		fmt.Println("从文件反序列化Repo时出错:", err)
+		return
+	}
+
+	// 打印反序列化后的Repo
+	fmt.Printf("反序列化后的Repo: %+v\n", loadedRepo)
 }
