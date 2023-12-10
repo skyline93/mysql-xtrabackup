@@ -30,4 +30,6 @@ func TestInitRepo(t *testing.T) {
 	r.AddBackupSet(bs1)
 	r.AddBackupSet(bs2)
 	r.AddBackupSet(bs3)
+
+	r.Commit()
 }

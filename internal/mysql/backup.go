@@ -1,149 +1,146 @@
 package mysql
 
-// import (
-// 	"bufio"
-// 	"fmt"
-// 	"log"
-// 	"os"
-// 	"os/exec"
-// 	"path/filepath"
-// 	"strconv"
-// 	"strings"
-// 	"time"
-// )
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
-// type BackupResult struct {
-// 	LogStart string
-// 	LogEnd   string
-// 	Size     uint64
-// }
+	"github.com/skyline93/mysql-xtrabackup/internal/repo"
+)
 
-// func (r *BackupResult) String() string {
-// 	return fmt.Sprintf("\nlogStart: %s\nlogEnd: %s\nSize: %dbytes\n", r.LogStart, r.LogEnd, r.Size)
-// }
+type Backuper struct {
+}
 
-// type Backuper struct {
-// 	loginPath      string
-// 	throttle       int
-// 	tryCompress    bool
-// 	binPath        string
-// 	dbHostName     string
-// 	dbUser         string
-// 	backupHostName string
-// 	backupUser     string
-// }
+func NewBackuper() *Backuper {
+	return &Backuper{}
+}
 
-// func NewBackuper(loginPath string, throttle int, tryCompress bool, binPath string, dbHostName, dbUser string, backupHostName, backupUser string) *Backuper {
-// 	return &Backuper{
-// 		loginPath:      loginPath,
-// 		throttle:       throttle,
-// 		tryCompress:    tryCompress,
-// 		binPath:        binPath,
-// 		dbHostName:     dbHostName,
-// 		dbUser:         dbUser,
-// 		backupHostName: backupHostName,
-// 		backupUser:     backupUser,
-// 	}
-// }
+func (b *Backuper) Backup(r *repo.Repo, backupType string) error {
+	var lastBackupSet *repo.BackupSet
 
-// func (b *Backuper) Backup(dataPath string, targetPath string, logStart string) (*BackupResult, error) {
-// 	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-// 		err := os.MkdirAll(targetPath, 0755)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		log.Printf("create path: %s", targetPath)
-// 	}
+	// TODO 封装到repo中
+	if r.Tail() != nil {
+		lastBackupSet = r.Tail().Tail()
+	}
 
-// 	backupArgs := []string{
-// 		filepath.Join(b.binPath, "xtrabackup"), "--backup", fmt.Sprintf("--throttle=%d", b.throttle), fmt.Sprintf("--login-path=%s", b.loginPath), fmt.Sprintf("--datadir=%s", dataPath), "--stream=xbstream",
-// 	}
+	bs := repo.NewBackupSet(backupType)
+	r.AddBackupSet(bs)
 
-// 	if b.tryCompress {
-// 		backupArgs = append(backupArgs, "--compress")
-// 	}
+	if _, err := os.Stat(bs.Path); os.IsNotExist(err) {
+		err := os.MkdirAll(bs.Path, 0755)
+		if err != nil {
+			return err
+		}
+		log.Printf("create path: %s", bs.Path)
+	}
 
-// 	if logStart != "" {
-// 		backupArgs = append(backupArgs, fmt.Sprintf("--incremental-lsn=%s", logStart))
-// 	}
+	backupArgs := []string{
+		filepath.Join(r.Config.BinPath, "xtrabackup"), "--backup", fmt.Sprintf("--throttle=%d", r.Config.Throttle), fmt.Sprintf("--login-path=%s", r.Config.LoginPath), fmt.Sprintf("--datadir=%s", r.Config.DataPath), "--stream=xbstream",
+	}
 
-// 	streamArgs := []string{
-// 		"ssh", fmt.Sprintf("%s@%s", b.backupUser, b.backupHostName),
-// 		filepath.Join(b.binPath, "xbstream"), "-x", "-C", targetPath,
-// 	}
+	if r.Config.TryCompress {
+		backupArgs = append(backupArgs, "--compress")
+	}
 
-// 	args := append(append(backupArgs, []string{"|"}...), streamArgs...)
+	if backupType == repo.TypeBackupSetIncr {
+		backupArgs = append(backupArgs, fmt.Sprintf("--incremental-lsn=%s", lastBackupSet.ToLSN))
+	}
 
-// 	logFile, err := os.Create(fmt.Sprintf("xtrabackup-%s.log", time.Now().Format("20060102150405")))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer logFile.Close()
+	streamArgs := []string{
+		"ssh", fmt.Sprintf("%s@%s", r.Config.BackupUser, r.Config.BackupHostName),
+		filepath.Join(r.Config.BinPath, "xbstream"), "-x", "-C", bs.Path,
+	}
 
-// 	cmd := exec.Command("ssh", fmt.Sprintf("%s@%s", b.dbUser, b.dbHostName), strings.Join(args, " "))
-// 	cmd.Stdout = logFile
-// 	cmd.Stderr = logFile
+	args := append(append(backupArgs, []string{"|"}...), streamArgs...)
 
-// 	if err := cmd.Run(); err != nil {
-// 		return nil, err
-// 	}
+	xtraLogPath, err := filepath.Abs(fmt.Sprintf("logs/xtrabackup-%s.log", time.Now().Format("20060102150405")))
+	if err != nil {
+		return err
+	}
 
-// 	content, err := os.ReadFile(filepath.Join(targetPath, "xtrabackup_checkpoints"))
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	log.Printf("log path: %s", xtraLogPath)
+	logFile, err := os.Create(xtraLogPath)
+	if err != nil {
+		return err
+	}
+	defer logFile.Close()
 
-// 	checkpoints, err := b.parseCheckpoints(string(content))
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	cmd := exec.Command("ssh", fmt.Sprintf("%s@%s", r.Config.DbUser, r.Config.DbHostName), strings.Join(args, " "))
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
 
-// 	size, err := b.getBackupSize(targetPath)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	log.Printf("cmd: %s", cmd.String())
+	if err := cmd.Run(); err != nil {
+		return err
+	}
 
-// 	return &BackupResult{
-// 		Size:     size,
-// 		LogStart: checkpoints["from_lsn"],
-// 		LogEnd:   checkpoints["to_lsn"],
-// 	}, nil
-// }
+	content, err := os.ReadFile(filepath.Join(bs.Path, "xtrabackup_checkpoints"))
+	if err != nil {
+		return err
+	}
 
-// func (b *Backuper) parseCheckpoints(content string) (map[string]string, error) {
-// 	checkpointsMap := make(map[string]string)
-// 	scanner := bufio.NewScanner(strings.NewReader(content))
+	checkpoints, err := b.parseCheckpoints(string(content))
+	if err != nil {
+		return err
+	}
 
-// 	for scanner.Scan() {
-// 		line := scanner.Text()
-// 		parts := strings.SplitN(line, "=", 2)
-// 		if len(parts) == 2 {
-// 			key := strings.TrimSpace(parts[0])
-// 			value := strings.TrimSpace(parts[1])
-// 			checkpointsMap[key] = value
-// 		}
-// 	}
+	size, err := b.getBackupSize(bs.Path)
+	if err != nil {
+		return err
+	}
 
-// 	if err := scanner.Err(); err != nil {
-// 		return nil, err
-// 	}
+	bs.FromLSN = checkpoints["from_lsn"]
+	bs.ToLSN = checkpoints["to_lsn"]
+	bs.Size = int64(size)
 
-// 	return checkpointsMap, nil
-// }
+	if err = r.Commit(); err != nil {
+		return err
+	}
 
-// func (b *Backuper) getBackupSize(targetPath string) (uint64, error) {
-// 	cmd := exec.Command("du", "-sb", targetPath)
+	log.Printf("backup completed. \n\nbackupset: %s\npath: %s\nfrom_lsn: %s\nto_lsn: %s", bs.Id, bs.Path, bs.FromLSN, bs.ToLSN)
+	return nil
+}
 
-// 	output, err := cmd.CombinedOutput()
-// 	if err != nil {
-// 		return 0, err
-// 	}
+func (b *Backuper) parseCheckpoints(content string) (map[string]string, error) {
+	checkpointsMap := make(map[string]string)
+	scanner := bufio.NewScanner(strings.NewReader(content))
 
-// 	// 解析 du 输出获取备份数据量
-// 	fields := strings.Fields(string(output))
-// 	size, err := strconv.ParseUint(fields[0], 10, 64)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	return size, nil
-// }
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			checkpointsMap[key] = value
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return checkpointsMap, nil
+}
+
+func (b *Backuper) getBackupSize(targetPath string) (uint64, error) {
+	cmd := exec.Command("du", "-sb", targetPath)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return 0, err
+	}
+
+	// 解析 du 输出获取备份数据量
+	fields := strings.Fields(string(output))
+	size, err := strconv.ParseUint(fields[0], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return size, nil
+}

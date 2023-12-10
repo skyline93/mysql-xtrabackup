@@ -18,6 +18,7 @@ type BackupSet struct {
 	Type    string
 	FromLSN string
 	ToLSN   string
+	Size    int64
 	Prev    *BackupSet
 	Next    *BackupSet
 }
@@ -100,6 +101,10 @@ func (r *Repo) Head() *BackupCycle {
 }
 
 func (r *Repo) Tail() *BackupCycle {
+	// TODO 初始没有index文件的问题
+	if r.BackupCycles == nil {
+		return nil
+	}
 	return r.BackupCycles[len(r.BackupCycles)-1]
 }
 

@@ -10,6 +10,9 @@ type JsonBackupSet struct {
 	Id      string `json:"id"`
 	Path    string `json:"path"`
 	Type    string `json:"type"`
+	FromLSN string `json:"from_lsn"`
+	ToLSN   string `json:"to_lsn"`
+	Size    int64  `json:"size"`
 	CycleId string `json:"cycle_id"`
 }
 
@@ -33,6 +36,9 @@ func (r *Repo) serialize() error {
 				Id:      bs.Id,
 				Path:    bs.Path,
 				Type:    bs.Type,
+				FromLSN: bs.FromLSN,
+				ToLSN:   bs.ToLSN,
+				Size:    bs.Size,
 				CycleId: bc.Id,
 			})
 		}
@@ -57,7 +63,21 @@ func (r *Repo) serialize() error {
 }
 
 func Load(repoPath string) (*Repo, error) {
-	d, err := os.ReadFile(filepath.Join(repoPath, "index"))
+	config, err := loadConfigFromRepo(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	repoId := filepath.Base(repoPath)
+	repo := NewRepo(repoId, config)
+	repo.Path = repoPath
+
+	indexPath := filepath.Join(repoPath, "index")
+	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+		return repo, nil
+	}
+
+	d, err := os.ReadFile(indexPath)
 	if err != nil {
 		return nil, err
 	}
@@ -67,18 +87,18 @@ func Load(repoPath string) (*Repo, error) {
 		return nil, err
 	}
 
-	config, err := loadConfigFromRepo(repoPath)
-	if err != nil {
-		return nil, err
-	}
-
-	repoId := filepath.Base(repoPath)
-	repo := NewRepo(repoId, config)
 	for _, bc := range jsonRepo.BackupCycles {
 		backupCycle := &BackupCycle{Id: bc.Id}
 		for _, bs := range jsonRepo.BackupSets {
 			if bs.CycleId == bc.Id {
-				backupCycle.Insert(&BackupSet{Id: bs.Id, Path: bs.Path, Type: bs.Type})
+				backupCycle.Insert(&BackupSet{
+					Id:      bs.Id,
+					Path:    bs.Path,
+					Type:    bs.Type,
+					FromLSN: bs.FromLSN,
+					ToLSN:   bs.ToLSN,
+					Size:    bs.Size,
+				})
 			}
 		}
 		repo.Insert(backupCycle)

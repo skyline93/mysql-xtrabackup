@@ -20,6 +20,7 @@ services:
     restart: always
     volumes:
       - backup_data:/data/backup
+      - workspace:/root/workspace
   restorer:
     image: "glf9832/xtrabackup:8.0.28-3"
     ports:
@@ -47,3 +48,10 @@ volumes:
       type: none
       device: ./.testdata/restoredata
       o: bind
+  workspace:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./
+      o: bind
+
