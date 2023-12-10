@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type JsonBackupSet struct {
@@ -24,7 +23,7 @@ type JsonRepo struct {
 	BackupCycles []JsonBackupCycle `json:"backupcycles"`
 }
 
-func SerializeToJson(r *Repo, path string) error {
+func (r *Repo) serialize() error {
 	var jsonBackupSets []JsonBackupSet
 	var jsonBackupCycles []JsonBackupCycle
 
@@ -54,12 +53,11 @@ func SerializeToJson(r *Repo, path string) error {
 		return err
 	}
 
-	os.WriteFile(path, d, 0664)
-	return nil
+	return os.WriteFile(filepath.Join(r.Path, "index"), d, 0664)
 }
 
-func UnserializeFromJson(path string) (*Repo, error) {
-	d, err := os.ReadFile(path)
+func Load(repoPath string) (*Repo, error) {
+	d, err := os.ReadFile(filepath.Join(repoPath, "index"))
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +67,13 @@ func UnserializeFromJson(path string) (*Repo, error) {
 		return nil, err
 	}
 
-	fileName := filepath.Base(path)
-	repoId := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	repo := NewRepo(repoId)
+	config, err := loadConfigFromRepo(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	repoId := filepath.Base(repoPath)
+	repo := NewRepo(repoId, config)
 	for _, bc := range jsonRepo.BackupCycles {
 		backupCycle := &BackupCycle{Id: bc.Id}
 		for _, bs := range jsonRepo.BackupSets {
@@ -84,3 +86,63 @@ func UnserializeFromJson(path string) (*Repo, error) {
 
 	return repo, nil
 }
+
+// func SerializeToJson(r *Repo, path string) error {
+// 	var jsonBackupSets []JsonBackupSet
+// 	var jsonBackupCycles []JsonBackupCycle
+
+// 	for _, bc := range r.BackupCycles {
+// 		for _, bs := range bc.BackupSets {
+// 			jsonBackupSets = append(jsonBackupSets, JsonBackupSet{
+// 				Id:      bs.Id,
+// 				Path:    bs.Path,
+// 				Type:    bs.Type,
+// 				CycleId: bc.Id,
+// 			})
+// 		}
+
+// 		jsonBackupCycles = append(jsonBackupCycles, JsonBackupCycle{
+// 			Id:     bc.Id,
+// 			RepoId: r.Id,
+// 		})
+// 	}
+
+// 	jsonRepo := &JsonRepo{
+// 		BackupSets:   jsonBackupSets,
+// 		BackupCycles: jsonBackupCycles,
+// 	}
+
+// 	d, err := json.Marshal(jsonRepo)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	return os.WriteFile(path, d, 0664)
+// }
+
+// func UnserializeFromJson(path string) (*Repo, error) {
+// 	d, err := os.ReadFile(path)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	jsonRepo := &JsonRepo{}
+// 	if err := json.Unmarshal(d, jsonRepo); err != nil {
+// 		return nil, err
+// 	}
+
+// 	fileName := filepath.Base(path)
+// 	repoId := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+// 	repo := NewRepo(repoId)
+// 	for _, bc := range jsonRepo.BackupCycles {
+// 		backupCycle := &BackupCycle{Id: bc.Id}
+// 		for _, bs := range jsonRepo.BackupSets {
+// 			if bs.CycleId == bc.Id {
+// 				backupCycle.Insert(&BackupSet{Id: bs.Id, Path: bs.Path, Type: bs.Type})
+// 			}
+// 		}
+// 		repo.Insert(backupCycle)
+// 	}
+
+// 	return repo, nil
+// }

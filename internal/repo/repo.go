@@ -1,6 +1,11 @@
 package repo
 
-import "github.com/google/uuid"
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/google/uuid"
+)
 
 const (
 	TypeBackupSetFull = "full"
@@ -8,11 +13,13 @@ const (
 )
 
 type BackupSet struct {
-	Id   string
-	Path string
-	Type string
-	Prev *BackupSet
-	Next *BackupSet
+	Id      string
+	Path    string
+	Type    string
+	FromLSN string
+	ToLSN   string
+	Prev    *BackupSet
+	Next    *BackupSet
 }
 
 type BackupCycle struct {
@@ -24,13 +31,14 @@ type BackupCycle struct {
 
 type Repo struct {
 	Id           string         `json:"id"`
+	Path         string         `json:"path"`
 	BackupCycles []*BackupCycle `json:"backup_cycles"`
+	Config       *Config        `json:"-"`
 }
 
-func NewBackupSet(path string, backupSetType string) *BackupSet {
+func NewBackupSet(backupSetType string) *BackupSet {
 	return &BackupSet{
 		Id:   uuid.New().String(),
-		Path: path,
 		Type: backupSetType,
 	}
 }
@@ -59,8 +67,32 @@ func (bc *BackupCycle) Insert(backupSet *BackupSet) {
 	}
 }
 
-func NewRepo(Id string) *Repo {
-	return &Repo{Id: Id}
+func NewRepo(Id string, config *Config) *Repo {
+	return &Repo{Id: Id, Config: config}
+}
+
+func (r *Repo) Init(path string) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+
+	repoPath := filepath.Join(absPath, r.Id)
+	r.Path = repoPath
+
+	if err = os.MkdirAll(repoPath, 0764); err != nil {
+		return err
+	}
+
+	if err = os.MkdirAll(filepath.Join(r.Path, "data"), 0764); err != nil {
+		return err
+	}
+
+	if err = saveConfigToRepo(r.Config, r.Path); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *Repo) Head() *BackupCycle {
@@ -82,7 +114,14 @@ func (r *Repo) Insert(backupCycle *BackupCycle) {
 	}
 }
 
-func (r *Repo) InsertBackupSet(backupSet *BackupSet) {
+func (r *Repo) DataPath() string {
+	return filepath.Join(r.Path, "data")
+}
+
+func (r *Repo) AddBackupSet(backupSet *BackupSet) {
+	path := filepath.Join(r.DataPath(), backupSet.Id)
+	backupSet.Path = path
+
 	if backupSet.Type == TypeBackupSetFull {
 		bc := NewBackupCycle()
 		bc.Insert(backupSet)
@@ -90,4 +129,8 @@ func (r *Repo) InsertBackupSet(backupSet *BackupSet) {
 	} else {
 		r.Tail().Insert(backupSet)
 	}
+}
+
+func (r *Repo) Commit() error {
+	return r.serialize()
 }
