@@ -1,6 +1,6 @@
 module github.com/skyline93/mysql-xtrabackup
 
-go 1.21.2
+go 1.21
 
 require (
 	github.com/google/uuid v1.4.0

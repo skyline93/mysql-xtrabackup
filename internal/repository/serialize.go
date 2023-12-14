@@ -1,4 +1,4 @@
-package repo
+package repository
 
 import (
 	"encoding/json"
@@ -26,7 +26,7 @@ type JsonRepo struct {
 	BackupCycles []JsonBackupCycle `json:"backupcycles"`
 }
 
-func (r *Repo) serialize() error {
+func (r *Repository) serialize() error {
 	var jsonBackupSets []JsonBackupSet
 	var jsonBackupCycles []JsonBackupCycle
 
@@ -62,14 +62,14 @@ func (r *Repo) serialize() error {
 	return os.WriteFile(filepath.Join(r.Path, "index"), d, 0664)
 }
 
-func Load(repoPath string) (*Repo, error) {
+func Load(repoPath string) (*Repository, error) {
 	config, err := loadConfigFromRepo(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
 	repoId := filepath.Base(repoPath)
-	repo := NewRepo(repoId, config)
+	repo := NewRepository(repoId, config)
 	repo.Path = repoPath
 
 	indexPath := filepath.Join(repoPath, "index")

@@ -29,6 +29,7 @@ services:
     volumes:
       - backup_data:/data/backup
       - restore_data:/data/restore
+      - workspace:/root/workspace
 volumes:
   mysql_data:
     driver: local
@@ -54,4 +55,3 @@ volumes:
       type: none
       device: ./
       o: bind
-

@@ -3,12 +3,12 @@ package mysql
 import (
 	"testing"
 
-	"github.com/skyline93/mysql-xtrabackup/internal/repo"
+	"github.com/skyline93/mysql-xtrabackup/internal/repository"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInitRepo(t *testing.T) {
-	config := &repo.Config{
+func TestInitrepository(t *testing.T) {
+	config := &repository.Config{
 		Identifer:   "MYTEST1",
 		Version:     "8.0.23",
 		LoginPath:   "MYTEST1",
@@ -18,11 +18,11 @@ func TestInitRepo(t *testing.T) {
 		TryCompress: true,
 	}
 
-	bs1 := repo.NewBackupSet(repo.TypeBackupSetFull)
-	bs2 := repo.NewBackupSet(repo.TypeBackupSetIncr)
-	bs3 := repo.NewBackupSet(repo.TypeBackupSetIncr)
+	bs1 := repository.NewBackupSet(repository.TypeBackupSetFull)
+	bs2 := repository.NewBackupSet(repository.TypeBackupSetIncr)
+	bs3 := repository.NewBackupSet(repository.TypeBackupSetIncr)
 
-	r := repo.NewRepo("MYTEST1", config)
+	r := repository.NewRepository("MYTEST1", config)
 	err := r.Init("./")
 	assert.Nil(t, err)
 	assert.Equal(t, "MYTEST1", r.Id)

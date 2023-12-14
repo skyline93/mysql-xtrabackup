@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyline93/mysql-xtrabackup/internal/repo"
+	"github.com/skyline93/mysql-xtrabackup/internal/repository"
 )
 
 type Backuper struct {
@@ -21,16 +21,16 @@ func NewBackuper() *Backuper {
 	return &Backuper{}
 }
 
-func (b *Backuper) Backup(r *repo.Repo, backupType string) error {
-	var lastBackupSet *repo.BackupSet
+func (b *Backuper) Backup(repo *repository.Repository, backupType string) error {
+	var lastBackupSet *repository.BackupSet
 
 	// TODO 封装到repo中
-	if r.Tail() != nil {
-		lastBackupSet = r.Tail().Tail()
+	if repo.Tail() != nil {
+		lastBackupSet = repo.Tail().Tail()
 	}
 
-	bs := repo.NewBackupSet(backupType)
-	r.AddBackupSet(bs)
+	bs := repository.NewBackupSet(backupType)
+	repo.AddBackupSet(bs)
 
 	if _, err := os.Stat(bs.Path); os.IsNotExist(err) {
 		err := os.MkdirAll(bs.Path, 0755)
@@ -41,20 +41,20 @@ func (b *Backuper) Backup(r *repo.Repo, backupType string) error {
 	}
 
 	backupArgs := []string{
-		filepath.Join(r.Config.BinPath, "xtrabackup"), "--backup", fmt.Sprintf("--throttle=%d", r.Config.Throttle), fmt.Sprintf("--login-path=%s", r.Config.LoginPath), fmt.Sprintf("--datadir=%s", r.Config.DataPath), "--stream=xbstream",
+		filepath.Join(repo.Config.BinPath, "xtrabackup"), "--backup", fmt.Sprintf("--throttle=%d", repo.Config.Throttle), fmt.Sprintf("--login-path=%s", repo.Config.LoginPath), fmt.Sprintf("--datadir=%s", repo.Config.DataPath), "--stream=xbstream",
 	}
 
-	if r.Config.TryCompress {
+	if repo.Config.TryCompress {
 		backupArgs = append(backupArgs, "--compress")
 	}
 
-	if backupType == repo.TypeBackupSetIncr {
+	if backupType == repository.TypeBackupSetIncr {
 		backupArgs = append(backupArgs, fmt.Sprintf("--incremental-lsn=%s", lastBackupSet.ToLSN))
 	}
 
 	streamArgs := []string{
-		"ssh", fmt.Sprintf("%s@%s", r.Config.BackupUser, r.Config.BackupHostName),
-		filepath.Join(r.Config.BinPath, "xbstream"), "-x", "-C", bs.Path,
+		"ssh", fmt.Sprintf("%s@%s", repo.Config.BackupUser, repo.Config.BackupHostName),
+		filepath.Join(repo.Config.BinPath, "xbstream"), "-x", "-C", bs.Path,
 	}
 
 	args := append(append(backupArgs, []string{"|"}...), streamArgs...)
@@ -71,7 +71,7 @@ func (b *Backuper) Backup(r *repo.Repo, backupType string) error {
 	}
 	defer logFile.Close()
 
-	cmd := exec.Command("ssh", fmt.Sprintf("%s@%s", r.Config.DbUser, r.Config.DbHostName), strings.Join(args, " "))
+	cmd := exec.Command("ssh", fmt.Sprintf("%s@%s", repo.Config.DbUser, repo.Config.DbHostName), strings.Join(args, " "))
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
@@ -99,7 +99,7 @@ func (b *Backuper) Backup(r *repo.Repo, backupType string) error {
 	bs.ToLSN = checkpoints["to_lsn"]
 	bs.Size = int64(size)
 
-	if err = r.Commit(); err != nil {
+	if err = repo.Commit(); err != nil {
 		return err
 	}
 

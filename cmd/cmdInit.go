@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/skyline93/mysql-xtrabackup/internal/repo"
+	"github.com/skyline93/mysql-xtrabackup/internal/repository"
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +11,7 @@ var cmdInit = &cobra.Command{
 	Use:   "init -n MYTEST1 -p /data/backup",
 	Short: "init",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := &repo.Config{
+		config := &repository.Config{
 			Identifer:   "MYTEST1",
 			Version:     "8.0.23",
 			LoginPath:   "local",
@@ -26,7 +26,7 @@ var cmdInit = &cobra.Command{
 			BackupHostName: "backuper",
 		}
 
-		r := repo.NewRepo(initOptions.RepoName, config)
+		r := repository.NewRepository(initOptions.RepoName, config)
 		if err := r.Init(initOptions.Root); err != nil {
 			os.Exit(1)
 		}

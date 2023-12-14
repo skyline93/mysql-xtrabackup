@@ -1,6 +1,7 @@
-package repo
+package repository
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -30,7 +31,7 @@ type BackupCycle struct {
 	Next       *BackupCycle
 }
 
-type Repo struct {
+type Repository struct {
 	Id           string         `json:"id"`
 	Path         string         `json:"path"`
 	BackupCycles []*BackupCycle `json:"backup_cycles"`
@@ -68,11 +69,27 @@ func (bc *BackupCycle) Insert(backupSet *BackupSet) {
 	}
 }
 
-func NewRepo(Id string, config *Config) *Repo {
-	return &Repo{Id: Id, Config: config}
+func (bc *BackupCycle) Find(backupSetId string) (*BackupSet, error) {
+	bs := bc.Head()
+
+	for {
+		if bs.Id == backupSetId {
+			return bs, nil
+		}
+
+		if bs.Next == nil {
+			return nil, errors.New("not found")
+		}
+
+		bs = bs.Next
+	}
 }
 
-func (r *Repo) Init(path string) error {
+func NewRepository(Id string, config *Config) *Repository {
+	return &Repository{Id: Id, Config: config}
+}
+
+func (r *Repository) Init(path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -96,11 +113,11 @@ func (r *Repo) Init(path string) error {
 	return nil
 }
 
-func (r *Repo) Head() *BackupCycle {
+func (r *Repository) Head() *BackupCycle {
 	return r.BackupCycles[0]
 }
 
-func (r *Repo) Tail() *BackupCycle {
+func (r *Repository) Tail() *BackupCycle {
 	// TODO 初始没有index文件的问题
 	if r.BackupCycles == nil {
 		return nil
@@ -108,7 +125,7 @@ func (r *Repo) Tail() *BackupCycle {
 	return r.BackupCycles[len(r.BackupCycles)-1]
 }
 
-func (r *Repo) Insert(backupCycle *BackupCycle) {
+func (r *Repository) Insert(backupCycle *BackupCycle) {
 	if len(r.BackupCycles) == 0 {
 		r.BackupCycles = append(r.BackupCycles, backupCycle)
 	} else {
@@ -119,11 +136,11 @@ func (r *Repo) Insert(backupCycle *BackupCycle) {
 	}
 }
 
-func (r *Repo) DataPath() string {
+func (r *Repository) DataPath() string {
 	return filepath.Join(r.Path, "data")
 }
 
-func (r *Repo) AddBackupSet(backupSet *BackupSet) {
+func (r *Repository) AddBackupSet(backupSet *BackupSet) {
 	path := filepath.Join(r.DataPath(), backupSet.Id)
 	backupSet.Path = path
 
@@ -136,6 +153,38 @@ func (r *Repo) AddBackupSet(backupSet *BackupSet) {
 	}
 }
 
-func (r *Repo) Commit() error {
+func (r *Repository) Commit() error {
 	return r.serialize()
+}
+
+func (r *Repository) FindBackupSet(backupSetId string) (*BackupSet, error) {
+	bc := r.Head()
+
+	for {
+		bs, err := bc.Find(backupSetId)
+		if err != nil {
+			if bc.Next != nil {
+				bc = bc.Next
+				continue
+			}
+			return nil, errors.New("not found")
+		}
+
+		if bs.Id == backupSetId {
+			return bs, nil
+		}
+	}
+}
+
+func (r *Repository) FindBackupCycle(backupSetId string) (*BackupCycle, error) {
+	bc := r.Head()
+	for {
+		_, err := bc.Find(backupSetId)
+		if err != nil {
+			bc = bc.Next
+			continue
+		}
+
+		return bc, nil
+	}
 }
