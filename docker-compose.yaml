@@ -12,7 +12,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./mysql/conf.d/my.cnf:/etc/mysql/conf.d/my.cnf
   backuper:
-    image: "glf9832/xtrabackup:8.0.28-3"
+    image: "glf9832/xtrabackup:8.0.28-4"
     ports:
       - "2222:22"
     expose:
@@ -22,7 +22,7 @@ services:
       - backup_data:/data/backup
       - workspace:/root/workspace
   restorer:
-    image: "glf9832/xtrabackup:8.0.28-3"
+    image: "glf9832/xtrabackup:8.0.28-4"
     ports:
       - "3308:3306"
     restart: always

@@ -20,7 +20,9 @@ RUN apt-get update \
 
 ENV PATH=$PATH:/usr/local/xtrabackup/bin
 
-RUN apt-get install -y sshpass
+RUN apt-get install -y sshpass \
+    && wget https://mirrors.aliyun.com/golang/go1.21.5.linux-amd64.tar.gz \
+    && tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
 
 ARG PASSWORD='root:Y3+qoXfJj^'
 COPY ./init.sh /usr/local/bin/init.sh
@@ -29,6 +31,10 @@ RUN mkdir /run/sshd \
     && echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config \
     && echo '    StrictHostKeyChecking no' >> /etc/ssh/ssh_config \
     && echo "alias ll='ls -l'" >> /root/.bashrc \
+    && echo "export GOROOT=/usr/local/go" \
+    && echo "export GOPATH=$HOME/go" \
+    && echo "export PATH=$PATH:$GOROOT/bin:$GOPATH/bin" \
+    && echo "export GOPROXY=https://goproxy.io,direct" \
     && echo 'set mouse-=a' >> /usr/share/vim/vim81/defaults.vim \
     && ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa \
     && echo $PASSWORD | chpasswd \
