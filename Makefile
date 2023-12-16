@@ -1,7 +1,7 @@
 build: build-mysql build-backuper
 
 build-mysql:
-	docker build -t glf9832/mysql-xtrabackup:8.0.28-4 ./mysql
+	docker build -t glf9832/mysql-xtrabackup:8.0.28-3 ./mysql
 
 build-backuper:
 	docker build -t glf9832/xtrabackup:8.0.28-4 ./backuper
