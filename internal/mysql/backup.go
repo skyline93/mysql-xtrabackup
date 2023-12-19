@@ -21,7 +21,92 @@ func NewBackuper() *Backuper {
 	return &Backuper{}
 }
 
-func (b *Backuper) Backup(repo *repository.Repository, backupType string) error {
+func (b *Backuper) Backup(repo *repository.Repository2, backupType string) error {
+	bs := repository.NewBackupSet2(backupType)
+	targetPath := filepath.Join(repo.DataPath(), bs.Id)
+
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		err := os.MkdirAll(targetPath, 0755)
+		if err != nil {
+			return err
+		}
+		log.Printf("create path: %s", targetPath)
+	}
+
+	backupArgs := []string{
+		filepath.Join(repo.Config.BinPath, "xtrabackup"),
+		"--backup",
+		fmt.Sprintf("--throttle=%d", repo.Config.Throttle),
+		fmt.Sprintf("--login-path=%s", repo.Config.LoginPath),
+		fmt.Sprintf("--datadir=%s", repo.Config.DataPath),
+		"--stream=xbstream",
+	}
+
+	if repo.Config.TryCompress {
+		backupArgs = append(backupArgs, "--compress")
+	}
+
+	if backupType == repository.TypeBackupSetIncr {
+		lastBackupSet, err := repo.GetLastBackupSet()
+		if err != nil {
+			return err
+		}
+
+		backupArgs = append(backupArgs, fmt.Sprintf("--incremental-lsn=%s", lastBackupSet.ToLSN))
+	}
+
+	streamArgs := []string{
+		"ssh", fmt.Sprintf("%s@%s", repo.Config.BackupUser, repo.Config.BackupHostName),
+		filepath.Join(repo.Config.BinPath, "xbstream"), "-x", "-C", targetPath,
+	}
+
+	args := append(append(backupArgs, []string{"|"}...), streamArgs...)
+
+	xtraLogPath, err := filepath.Abs(fmt.Sprintf("logs/xtrabackup-%s.log", time.Now().Format("20060102150405")))
+	if err != nil {
+		return err
+	}
+
+	log.Printf("log path: %s", xtraLogPath)
+	logFile, err := os.Create(xtraLogPath)
+	if err != nil {
+		return err
+	}
+	defer logFile.Close()
+
+	cmd := exec.Command("ssh", fmt.Sprintf("%s@%s", repo.Config.DbUser, repo.Config.DbHostName), strings.Join(args, " "))
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+
+	log.Printf("cmd: %s", cmd.String())
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	content, err := os.ReadFile(filepath.Join(targetPath, "xtrabackup_checkpoints"))
+	if err != nil {
+		return err
+	}
+
+	checkpoints, err := b.parseCheckpoints(string(content))
+	if err != nil {
+		return err
+	}
+
+	size, err := b.getBackupSize(targetPath)
+	if err != nil {
+		return err
+	}
+
+	bs.FromLSN = checkpoints["from_lsn"]
+	bs.ToLSN = checkpoints["to_lsn"]
+	bs.Size = int64(size)
+
+	log.Printf("backup completed. \n\nbackupset: %s\npath: %s\nfrom_lsn: %s\nto_lsn: %s", bs.Id, bs.Path, bs.FromLSN, bs.ToLSN)
+	return nil
+}
+
+func (b *Backuper) Backup2(repo *repository.Repository, backupType string) error {
 	var lastBackupSet *repository.BackupSet
 
 	// TODO 封装到repo中

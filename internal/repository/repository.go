@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
+	"github.com/skyline93/mysql-xtrabackup/internal/stor"
 )
 
 const (
@@ -187,4 +188,86 @@ func (r *Repository) FindBackupCycle(backupSetId string) (*BackupCycle, error) {
 
 		return bc, nil
 	}
+}
+
+type BackupSet2 struct {
+	Id      string
+	Path    string
+	Type    string
+	FromLSN string
+	ToLSN   string
+	Size    int64
+}
+
+type Repository2 struct {
+	col    *stor.Collection
+	Config *Config
+	Path   string
+}
+
+func NewBackupSet2(backupSetType string) *BackupSet2 {
+	return &BackupSet2{
+		Id:   uuid.New().String(),
+		Type: backupSetType,
+	}
+}
+
+func NewRepository2() *Repository2 {
+	return &Repository2{col: stor.NewCollection()}
+}
+
+func (r *Repository2) AddBackupSet(backupSet *BackupSet) error {
+	if backupSet.Type == TypeBackupSetFull {
+		_, err := r.col.NewNode(backupSet.Id, backupSet, true)
+		if err != nil {
+			return err
+		}
+	} else if backupSet.Type == TypeBackupSetIncr {
+		_, err := r.col.NewNode(backupSet.Id, backupSet, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *Repository2) GetBackupSet(backupSetId string) (*BackupSet2, error) {
+	n := r.col.GetNode(backupSetId)
+	backupSet, ok := n.Data.(*BackupSet2)
+	if !ok {
+		return nil, errors.New("the backup set is not found")
+	}
+
+	return backupSet, nil
+}
+
+func (r *Repository2) GetBeforeBackupSet(backupSetId string) ([]BackupSet2, error) {
+	var backupSets []BackupSet2
+
+	nodes := r.col.GetBeforeNodes(backupSetId)
+
+	for _, n := range nodes {
+		backupSet, ok := n.Data.(*BackupSet2)
+		if !ok {
+			return nil, errors.New("unknow error")
+		}
+
+		backupSets = append(backupSets, *backupSet)
+	}
+
+	return backupSets, nil
+}
+
+func (r *Repository2) GetLastBackupSet() (*BackupSet2, error) {
+	n := r.col.GetLastNode()
+	if n == nil {
+		return nil, errors.New("last backupset is not found")
+	}
+
+	return n.Data.(*BackupSet2), nil
+}
+
+func (r *Repository2) DataPath() string {
+	return filepath.Join(r.Path, "data")
 }
