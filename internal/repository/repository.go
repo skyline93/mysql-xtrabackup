@@ -61,6 +61,8 @@ func LoadRepository2(repo *Repository2, path string) error {
 
 	repo.col = &col
 	repo.Config = &conf
+	repo.Name = conf.Identifer
+	repo.Path = path
 
 	return nil
 }
@@ -106,7 +108,7 @@ func (r *Repository2) AddBackupSet(backupSet *BackupSet2) error {
 		}
 	}
 
-	if err := stor.Serialize(r.col, r.Path); err != nil {
+	if err := stor.Serialize(r.col, filepath.Join(r.Path, "index")); err != nil {
 		return err
 	}
 

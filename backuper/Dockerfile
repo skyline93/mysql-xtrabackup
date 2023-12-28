@@ -20,7 +20,8 @@ RUN apt-get update \
 
 ENV PATH=$PATH:/usr/local/xtrabackup/bin
 
-RUN wget https://mirrors.aliyun.com/golang/go1.21.5.linux-amd64.tar.gz \
+RUN apt-get install -y sshpass \
+    && wget https://mirrors.aliyun.com/golang/go1.21.5.linux-amd64.tar.gz \
     && tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
 
 ARG PASSWORD='root:Y3+qoXfJj^'

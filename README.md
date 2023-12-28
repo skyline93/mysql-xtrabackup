@@ -1,4 +1,13 @@
 ```bash
+go run cmd/*.go init -p /data/backup -n repo
+```
+
+```bash
+go run cmd/*.go backup -t full -p /data/backup/repo
+```
+
+
+```bash
 /usr/local/xtrabackup/bin/xtrabackup --backup --compress --stream=xbstream --target-dir=./ | ssh root@backuper "/usr/local/xtrabackup/bin/xbstream -x"
 ```
 

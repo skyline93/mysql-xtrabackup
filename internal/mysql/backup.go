@@ -98,9 +98,14 @@ func (b *Backuper) Backup(repo *repository.Repository2, backupType string) error
 		return err
 	}
 
+	bs.Path = targetPath
 	bs.FromLSN = checkpoints["from_lsn"]
 	bs.ToLSN = checkpoints["to_lsn"]
 	bs.Size = int64(size)
+
+	if err := repo.AddBackupSet(bs); err != nil {
+		return err
+	}
 
 	log.Printf("backup completed. \n\nbackupset: %s\npath: %s\nfrom_lsn: %s\nto_lsn: %s", bs.Id, bs.Path, bs.FromLSN, bs.ToLSN)
 	return nil
