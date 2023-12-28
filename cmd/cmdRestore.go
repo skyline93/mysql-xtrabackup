@@ -1,11 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/skyline93/mysql-xtrabackup/internal/mysql"
-	"github.com/skyline93/mysql-xtrabackup/internal/repository"
 	"github.com/spf13/cobra"
 )
 
@@ -13,19 +8,19 @@ var cmdRestore = &cobra.Command{
 	Use:   "restore",
 	Short: "restore",
 	Run: func(cmd *cobra.Command, args []string) {
-		r, err := repository.Load(restoreOptions.RepoPath)
-		if err != nil {
-			fmt.Printf("load repo error: %s", err)
-			os.Exit(1)
-		}
+		// r, err := repository.Load(restoreOptions.RepoPath)
+		// if err != nil {
+		// 	fmt.Printf("load repo error: %s", err)
+		// 	os.Exit(1)
+		// }
 
-		restorer := mysql.NewRestorer()
+		// restorer := mysql.NewRestorer()
 
-		err = restorer.Restore(r, restoreOptions.TargetPath, restoreOptions.BackupSetId)
-		if err != nil {
-			fmt.Printf("restore failed, err: %s", err.Error())
-			os.Exit(1)
-		}
+		// err = restorer.Restore(r, restoreOptions.TargetPath, restoreOptions.BackupSetId)
+		// if err != nil {
+		// 	fmt.Printf("restore failed, err: %s", err.Error())
+		// 	os.Exit(1)
+		// }
 	},
 }
 

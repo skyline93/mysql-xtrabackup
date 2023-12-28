@@ -62,50 +62,50 @@ func (r *Repository) serialize() error {
 	return os.WriteFile(filepath.Join(r.Path, "index"), d, 0664)
 }
 
-func Load(repoPath string) (*Repository, error) {
-	config, err := loadConfigFromRepo(repoPath)
-	if err != nil {
-		return nil, err
-	}
+// func Load(repoPath string) (*Repository, error) {
+// 	config, err := loadConfigFromRepo(repoPath)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	repoId := filepath.Base(repoPath)
-	repo := NewRepository(repoId, config)
-	repo.Path = repoPath
+// 	repoId := filepath.Base(repoPath)
+// 	repo := NewRepository(repoId, config)
+// 	repo.Path = repoPath
 
-	indexPath := filepath.Join(repoPath, "index")
-	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
-		return repo, nil
-	}
+// 	indexPath := filepath.Join(repoPath, "index")
+// 	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+// 		return repo, nil
+// 	}
 
-	d, err := os.ReadFile(indexPath)
-	if err != nil {
-		return nil, err
-	}
+// 	d, err := os.ReadFile(indexPath)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	jsonRepo := &JsonRepo{}
-	if err := json.Unmarshal(d, jsonRepo); err != nil {
-		return nil, err
-	}
+// 	jsonRepo := &JsonRepo{}
+// 	if err := json.Unmarshal(d, jsonRepo); err != nil {
+// 		return nil, err
+// 	}
 
-	for _, bc := range jsonRepo.BackupCycles {
-		backupCycle := &BackupCycle{Id: bc.Id}
-		for _, bs := range jsonRepo.BackupSets {
-			if bs.CycleId == bc.Id {
-				backupCycle.Insert(&BackupSet{
-					Id:      bs.Id,
-					Path:    bs.Path,
-					Type:    bs.Type,
-					FromLSN: bs.FromLSN,
-					ToLSN:   bs.ToLSN,
-					Size:    bs.Size,
-				})
-			}
-		}
-		repo.Insert(backupCycle)
-	}
+// 	for _, bc := range jsonRepo.BackupCycles {
+// 		backupCycle := &BackupCycle{Id: bc.Id}
+// 		for _, bs := range jsonRepo.BackupSets {
+// 			if bs.CycleId == bc.Id {
+// 				backupCycle.Insert(&BackupSet{
+// 					Id:      bs.Id,
+// 					Path:    bs.Path,
+// 					Type:    bs.Type,
+// 					FromLSN: bs.FromLSN,
+// 					ToLSN:   bs.ToLSN,
+// 					Size:    bs.Size,
+// 				})
+// 			}
+// 		}
+// 		repo.Insert(backupCycle)
+// 	}
 
-	return repo, nil
-}
+// 	return repo, nil
+// }
 
 // func SerializeToJson(r *Repo, path string) error {
 // 	var jsonBackupSets []JsonBackupSet

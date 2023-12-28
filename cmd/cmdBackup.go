@@ -1,6 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
+	"github.com/skyline93/mysql-xtrabackup/internal/mysql"
+	"github.com/skyline93/mysql-xtrabackup/internal/repository"
 	"github.com/spf13/cobra"
 )
 
@@ -8,18 +13,17 @@ var cmdBackup = &cobra.Command{
 	Use:   "backup -p /data/backup/MYTEST1 -t full",
 	Short: "backup",
 	Run: func(cmd *cobra.Command, args []string) {
-		// r, err := repository.Load(backupOptions.RepoPath)
-		// if err != nil {
-		// 	fmt.Printf("load repo error: %s", err)
-		// 	os.Exit(1)
-		// }
+		repo := repository.Repository2{}
+		if err := repository.LoadRepository2(&repo, backupOptions.RepoPath); err != nil {
+			fmt.Printf("load repo error: %s", err)
+			os.Exit(1)
+		}
 
-		// backuper := mysql.NewBackuper()
-
-		// err = backuper.Backup(r, backupOptions.BackupType)
-		// if err != nil {
-		// 	panic(err)
-		// }
+		backuper := mysql.NewBackuper()
+		if err := backuper.Backup(&repo, backupOptions.BackupType); err != nil {
+			fmt.Printf("backup failed error: %s", err)
+			os.Exit(1)
+		}
 	},
 }
 

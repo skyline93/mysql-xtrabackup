@@ -34,18 +34,15 @@ func saveConfigToRepo(config *Config, repoPath string) error {
 	return nil
 }
 
-func loadConfigFromRepo(repoPath string) (*Config, error) {
-	path := filepath.Join(repoPath, "config")
-
+func loadConfigFromRepo(config *Config, path string) error {
 	d, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	config := &Config{}
 	if err = json.Unmarshal(d, config); err != nil {
-		return nil, err
+		return err
 	}
 
-	return config, nil
+	return nil
 }

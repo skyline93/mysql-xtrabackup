@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/skyline93/mysql-xtrabackup/internal/repository"
@@ -26,8 +27,9 @@ var cmdInit = &cobra.Command{
 			BackupHostName: "backuper",
 		}
 
-		r := repository.NewRepository(initOptions.RepoName, config)
+		r := repository.NewRepository2(initOptions.RepoName, config)
 		if err := r.Init(initOptions.Root); err != nil {
+			fmt.Printf("err: %s\n", err)
 			os.Exit(1)
 		}
 	},

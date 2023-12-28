@@ -7,15 +7,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type Data struct {
+	Path string
+}
+
 func TestIndex(t *testing.T) {
 	col := NewCollection()
 
-	node1, _ := col.NewNode(uuid.New().String(), nil, true)
-	node2, _ := col.NewNode(uuid.New().String(), nil, false)
-	node3, _ := col.NewNode(uuid.New().String(), nil, false)
-	node4, _ := col.NewNode(uuid.New().String(), nil, true)
-	node5, _ := col.NewNode(uuid.New().String(), nil, false)
-	node6, _ := col.NewNode(uuid.New().String(), nil, false)
+	node1, _ := col.NewNode(uuid.New().String(), Data{Path: "/node1"}, true)
+	node2, _ := col.NewNode(uuid.New().String(), Data{Path: "/node2"}, false)
+	node3, _ := col.NewNode(uuid.New().String(), Data{Path: "/node3"}, false)
+	node4, _ := col.NewNode(uuid.New().String(), Data{Path: "/node4"}, true)
+	node5, _ := col.NewNode(uuid.New().String(), Data{Path: "/node5"}, false)
+	node6, _ := col.NewNode(uuid.New().String(), Data{Path: "/node6"}, false)
 
 	assert.Equal(t, node1.Id, node2.Prev.Id)
 	assert.Equal(t, node1.Next.Id, node2.Id)
@@ -37,4 +41,11 @@ func TestIndex(t *testing.T) {
 	assert.Equal(t, []*Node{node4, node5, node6}, ns)
 	ns = col.GetBeforeNodes(node5.Id)
 	assert.Equal(t, []*Node{node4, node5}, ns)
+
+	err := Serialize(col, "./index")
+	assert.Nil(t, err)
+
+	col1 := Collection{}
+	err = Deserialize(&col1, "./index")
+	assert.Nil(t, err)
 }
