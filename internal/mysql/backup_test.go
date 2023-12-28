@@ -18,18 +18,16 @@ func TestInitrepository(t *testing.T) {
 		TryCompress: true,
 	}
 
-	bs1 := repository.NewBackupSet(repository.TypeBackupSetFull)
-	bs2 := repository.NewBackupSet(repository.TypeBackupSetIncr)
-	bs3 := repository.NewBackupSet(repository.TypeBackupSetIncr)
+	bs1 := repository.NewBackupSet2(repository.TypeBackupSetFull)
+	bs2 := repository.NewBackupSet2(repository.TypeBackupSetIncr)
+	bs3 := repository.NewBackupSet2(repository.TypeBackupSetIncr)
 
-	r := repository.NewRepository("MYTEST1", config)
+	r := repository.NewRepository2("MYTEST1", config)
 	err := r.Init("./")
 	assert.Nil(t, err)
-	assert.Equal(t, "MYTEST1", r.Id)
+	assert.Equal(t, "MYTEST1", r.Name)
 
 	r.AddBackupSet(bs1)
 	r.AddBackupSet(bs2)
 	r.AddBackupSet(bs3)
-
-	r.Commit()
 }
