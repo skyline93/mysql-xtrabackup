@@ -14,6 +14,10 @@ go run cmd/*.go backup -p .testdata/repo -t incr
 go run cmd/*.go list backupset -p .testdata/repo
 ```
 
+```bash
+go run cmd/*.go restore -p .testdata/repo -t /data/restore -m /usr/local/mysql/8.0.28 -i 29be898f-048f-497e-b6c8-fe69aa94d517
+```
+
 
 
 
