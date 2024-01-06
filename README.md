@@ -1,10 +1,20 @@
 ```bash
-go run cmd/*.go init -p /data/backup -n repo
+go run cmd/* init -p .testdata -n repo
 ```
 
 ```bash
-go run cmd/*.go backup -t full -p /data/backup/repo
+go run cmd/*.go backup -p .testdata/repo -t full
 ```
+
+```bash
+go run cmd/*.go backup -p .testdata/repo -t incr
+```
+
+```bash
+go run cmd/*.go list backupset -p .testdata/repo
+```
+
+
 
 
 ```bash

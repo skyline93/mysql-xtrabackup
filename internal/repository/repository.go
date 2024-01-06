@@ -15,38 +15,39 @@ const (
 	TypeBackupSetIncr = "incr"
 )
 
-type BackupSet2 struct {
-	Id      string `json:"id"`
-	Path    string `json:"path"`
-	Type    string `json:"type"`
-	FromLSN string `json:"from_lsn"`
-	ToLSN   string `json:"to_lsn"`
-	Size    int64  `json:"size"`
+type BackupSet struct {
+	Id         string `json:"id"`
+	Path       string `json:"path"`
+	Type       string `json:"type"`
+	FromLSN    string `json:"from_lsn"`
+	ToLSN      string `json:"to_lsn"`
+	Size       int64  `json:"size"`
+	BackupTime string `json:"backup_time"`
 }
 
-type Repository2 struct {
+type Repository struct {
 	col    *stor.Collection
 	Config *Config
 	Path   string `json:"path"`
 	Name   string `json:"name"`
 }
 
-func NewBackupSet2(backupSetType string) *BackupSet2 {
-	return &BackupSet2{
+func NewBackupSet(backupSetType string) *BackupSet {
+	return &BackupSet{
 		Id:   uuid.New().String(),
 		Type: backupSetType,
 	}
 }
 
-func NewRepository2(name string, config *Config) *Repository2 {
-	return &Repository2{
+func NewRepository(name string, config *Config) *Repository {
+	return &Repository{
 		col:    stor.NewCollection(),
 		Name:   name,
 		Config: config,
 	}
 }
 
-func LoadRepository2(repo *Repository2, path string) error {
+func LoadRepository(repo *Repository, path string) error {
 	indexPath := filepath.Join(path, "index")
 	col := stor.Collection{}
 
@@ -68,7 +69,7 @@ func LoadRepository2(repo *Repository2, path string) error {
 	return nil
 }
 
-func (r *Repository2) Init(path string) error {
+func (r *Repository) Init(path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -96,7 +97,7 @@ func (r *Repository2) Init(path string) error {
 	return nil
 }
 
-func (r *Repository2) AddBackupSet(backupSet *BackupSet2) error {
+func (r *Repository) AddBackupSet(backupSet *BackupSet) error {
 	v, err := json.Marshal(backupSet)
 	if err != nil {
 		return err
@@ -121,9 +122,9 @@ func (r *Repository2) AddBackupSet(backupSet *BackupSet2) error {
 	return nil
 }
 
-func (r *Repository2) GetBackupSet(backupSetId string) (*BackupSet2, error) {
+func (r *Repository) GetBackupSet(backupSetId string) (*BackupSet, error) {
 	n := r.col.GetNode(backupSetId)
-	var backupSet BackupSet2
+	var backupSet BackupSet
 	if err := json.Unmarshal(n.Data, &backupSet); err != nil {
 		return nil, err
 	}
@@ -131,13 +132,13 @@ func (r *Repository2) GetBackupSet(backupSetId string) (*BackupSet2, error) {
 	return &backupSet, nil
 }
 
-func (r *Repository2) GetBeforeBackupSet(backupSetId string) ([]BackupSet2, error) {
-	var backupSets []BackupSet2
+func (r *Repository) GetBeforeBackupSet(backupSetId string) ([]BackupSet, error) {
+	var backupSets []BackupSet
 
 	nodes := r.col.GetBeforeNodes(backupSetId)
 
 	for _, n := range nodes {
-		var backupSet BackupSet2
+		var backupSet BackupSet
 		if err := json.Unmarshal(n.Data, &backupSet); err != nil {
 			return nil, err
 		}
@@ -148,30 +149,30 @@ func (r *Repository2) GetBeforeBackupSet(backupSetId string) ([]BackupSet2, erro
 	return backupSets, nil
 }
 
-func (r *Repository2) GetLastBackupSet() (*BackupSet2, error) {
+func (r *Repository) GetLastBackupSet() (*BackupSet, error) {
 	n := r.col.GetLastNode()
 	if n == nil {
 		return nil, errors.New("last backupset is not found")
 	}
 
-	var backupSet BackupSet2
+	var backupSet BackupSet
 	if err := json.Unmarshal(n.Data, &backupSet); err != nil {
 		return nil, err
 	}
 	return &backupSet, nil
 }
 
-func (r *Repository2) DataPath() string {
+func (r *Repository) DataPath() string {
 	return filepath.Join(r.Path, "data")
 }
 
-func (r *Repository2) ListBackupSets() ([]BackupSet2, error) {
-	var backupSets []BackupSet2
+func (r *Repository) ListBackupSets() ([]BackupSet, error) {
+	var backupSets []BackupSet
 
 	ns := r.col.GetAllNodes()
 
 	for _, n := range ns {
-		var backupSet BackupSet2
+		var backupSet BackupSet
 		if err := json.Unmarshal(n.Data, &backupSet); err != nil {
 			return nil, err
 		}

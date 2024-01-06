@@ -16,18 +16,18 @@ var cmdInit = &cobra.Command{
 			Identifer:   "MYTEST1",
 			Version:     "8.0.23",
 			LoginPath:   "local",
-			DbHostName:  "mysql",
-			DbUser:      "root",
+			DbHostName:  "172.18.53.110",
+			DbUser:      "mysql",
 			Throttle:    400,
 			TryCompress: true,
 
-			BinPath:        "/usr/local/xtrabackup/bin",
+			BinPath:        "/usr/local/xtrabackup/8.0.28/bin",
 			DataPath:       "/var/lib/mysql",
-			BackupUser:     "root",
-			BackupHostName: "backuper",
+			BackupUser:     "skyline93",
+			BackupHostName: "172.18.53.110",
 		}
 
-		r := repository.NewRepository2(initOptions.RepoName, config)
+		r := repository.NewRepository(initOptions.RepoName, config)
 		if err := r.Init(initOptions.Root); err != nil {
 			fmt.Printf("err: %s\n", err)
 			os.Exit(1)

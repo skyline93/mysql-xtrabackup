@@ -21,8 +21,8 @@ func NewBackuper() *Backuper {
 	return &Backuper{}
 }
 
-func (b *Backuper) Backup(repo *repository.Repository2, backupType string) (err error) {
-	bs := repository.NewBackupSet2(backupType)
+func (b *Backuper) Backup(repo *repository.Repository, backupType string) (err error) {
+	bs := repository.NewBackupSet(backupType)
 	targetPath, err := filepath.Abs(filepath.Join(repo.DataPath(), bs.Id))
 	if err != nil {
 		return err
@@ -84,6 +84,7 @@ func (b *Backuper) Backup(repo *repository.Repository2, backupType string) (err 
 	}
 	defer logFile.Close()
 
+	backupTime := time.Now().Format("2006-01-02 15:04:05")
 	cmd := exec.Command("ssh", fmt.Sprintf("%s@%s", repo.Config.DbUser, repo.Config.DbHostName), strings.Join(args, " "))
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
@@ -112,6 +113,7 @@ func (b *Backuper) Backup(repo *repository.Repository2, backupType string) (err 
 	bs.FromLSN = checkpoints["from_lsn"]
 	bs.ToLSN = checkpoints["to_lsn"]
 	bs.Size = int64(size)
+	bs.BackupTime = backupTime
 
 	if err = repo.AddBackupSet(bs); err != nil {
 		return err

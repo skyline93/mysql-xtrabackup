@@ -11,6 +11,6 @@ func NewRestorer() *Restorer {
 	return &Restorer{}
 }
 
-func (r *Restorer) Restore(repo *repository.Repository2, targetPath string, backupSetId string) error {
+func (r *Restorer) Restore(repo *repository.Repository, targetPath string, backupSetId string) error {
 	return nil
 }
