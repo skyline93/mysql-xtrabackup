@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -96,13 +97,18 @@ func (r *Repository2) Init(path string) error {
 }
 
 func (r *Repository2) AddBackupSet(backupSet *BackupSet2) error {
+	v, err := json.Marshal(backupSet)
+	if err != nil {
+		return err
+	}
+
 	if backupSet.Type == TypeBackupSetFull {
-		_, err := r.col.NewNode(backupSet.Id, backupSet, true)
+		_, err := r.col.NewNode(backupSet.Id, v, true)
 		if err != nil {
 			return err
 		}
 	} else if backupSet.Type == TypeBackupSetIncr {
-		_, err := r.col.NewNode(backupSet.Id, backupSet, false)
+		_, err := r.col.NewNode(backupSet.Id, v, false)
 		if err != nil {
 			return err
 		}
@@ -117,12 +123,12 @@ func (r *Repository2) AddBackupSet(backupSet *BackupSet2) error {
 
 func (r *Repository2) GetBackupSet(backupSetId string) (*BackupSet2, error) {
 	n := r.col.GetNode(backupSetId)
-	backupSet, ok := n.Data.(*BackupSet2)
-	if !ok {
-		return nil, errors.New("the backup set is not found")
+	var backupSet BackupSet2
+	if err := json.Unmarshal(n.Data, &backupSet); err != nil {
+		return nil, err
 	}
 
-	return backupSet, nil
+	return &backupSet, nil
 }
 
 func (r *Repository2) GetBeforeBackupSet(backupSetId string) ([]BackupSet2, error) {
@@ -131,12 +137,12 @@ func (r *Repository2) GetBeforeBackupSet(backupSetId string) ([]BackupSet2, erro
 	nodes := r.col.GetBeforeNodes(backupSetId)
 
 	for _, n := range nodes {
-		backupSet, ok := n.Data.(*BackupSet2)
-		if !ok {
-			return nil, errors.New("unknow error")
+		var backupSet BackupSet2
+		if err := json.Unmarshal(n.Data, &backupSet); err != nil {
+			return nil, err
 		}
 
-		backupSets = append(backupSets, *backupSet)
+		backupSets = append(backupSets, backupSet)
 	}
 
 	return backupSets, nil
@@ -148,9 +154,30 @@ func (r *Repository2) GetLastBackupSet() (*BackupSet2, error) {
 		return nil, errors.New("last backupset is not found")
 	}
 
-	return n.Data.(*BackupSet2), nil
+	var backupSet BackupSet2
+	if err := json.Unmarshal(n.Data, &backupSet); err != nil {
+		return nil, err
+	}
+	return &backupSet, nil
 }
 
 func (r *Repository2) DataPath() string {
 	return filepath.Join(r.Path, "data")
+}
+
+func (r *Repository2) ListBackupSets() ([]BackupSet2, error) {
+	var backupSets []BackupSet2
+
+	ns := r.col.GetAllNodes()
+
+	for _, n := range ns {
+		var backupSet BackupSet2
+		if err := json.Unmarshal(n.Data, &backupSet); err != nil {
+			return nil, err
+		}
+
+		backupSets = append(backupSets, backupSet)
+	}
+
+	return backupSets, nil
 }

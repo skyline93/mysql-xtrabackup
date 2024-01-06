@@ -10,7 +10,7 @@ type Node struct {
 	Id      string
 	Prev    *Node
 	Next    *Node
-	Data    interface{}
+	Data    []byte
 	GroupId string
 }
 
@@ -27,7 +27,7 @@ type Collection struct {
 	nodes  map[string]*Node
 }
 
-func newNode(id string, data interface{}) *Node {
+func newNode(id string, data []byte) *Node {
 	return &Node{Id: id, Data: data}
 }
 
@@ -71,7 +71,7 @@ func (c *Collection) addGroup(g *group) {
 	}
 }
 
-func (c *Collection) NewNode(id string, data interface{}, isNewGroup bool) (*Node, error) {
+func (c *Collection) NewNode(id string, data []byte, isNewGroup bool) (*Node, error) {
 	_, ok := c.nodes[id]
 	if ok {
 		return nil, errors.New("the id is exists already")
@@ -125,4 +125,14 @@ func (c *Collection) GetStartNode(nodeId string) *Node {
 func (c *Collection) GetLastNode() *Node {
 	g := c.Groups[len(c.Groups)-1]
 	return g.Nodes[len(g.Nodes)-1]
+}
+
+func (c *Collection) GetAllNodes() []*Node {
+	var nodes []*Node
+
+	for _, g := range c.Groups {
+		nodes = append(nodes, g.Nodes...)
+	}
+
+	return nodes
 }

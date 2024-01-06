@@ -6,9 +6,9 @@ import (
 )
 
 type JsonNode struct {
-	Id      string      `json:"id"`
-	GroupId string      `json:"group_id"`
-	Data    interface{} `json:"data"`
+	Id      string `json:"id"`
+	GroupId string `json:"group_id"`
+	Data    []byte `json:"data"`
 }
 
 type JsonGroup struct {
