@@ -21,17 +21,27 @@ func NewBackuper() *Backuper {
 	return &Backuper{}
 }
 
-func (b *Backuper) Backup(repo *repository.Repository2, backupType string) error {
+func (b *Backuper) Backup(repo *repository.Repository2, backupType string) (err error) {
 	bs := repository.NewBackupSet2(backupType)
-	targetPath := filepath.Join(repo.DataPath(), bs.Id)
+	targetPath, err := filepath.Abs(filepath.Join(repo.DataPath(), bs.Id))
+	if err != nil {
+		return err
+	}
 
-	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-		err := os.MkdirAll(targetPath, 0755)
+	if _, err = os.Stat(targetPath); os.IsNotExist(err) {
+		err = os.MkdirAll(targetPath, 0755)
 		if err != nil {
 			return err
 		}
 		log.Printf("create path: %s", targetPath)
 	}
+
+	defer func() {
+		if err != nil {
+			log.Printf("backup failed, err: %s", err)
+			os.RemoveAll(targetPath)
+		}
+	}()
 
 	backupArgs := []string{
 		filepath.Join(repo.Config.BinPath, "xtrabackup"),
@@ -79,7 +89,7 @@ func (b *Backuper) Backup(repo *repository.Repository2, backupType string) error
 	cmd.Stderr = logFile
 
 	log.Printf("cmd: %s", cmd.String())
-	if err := cmd.Run(); err != nil {
+	if err = cmd.Run(); err != nil {
 		return err
 	}
 
@@ -103,11 +113,11 @@ func (b *Backuper) Backup(repo *repository.Repository2, backupType string) error
 	bs.ToLSN = checkpoints["to_lsn"]
 	bs.Size = int64(size)
 
-	if err := repo.AddBackupSet(bs); err != nil {
+	if err = repo.AddBackupSet(bs); err != nil {
 		return err
 	}
 
-	log.Printf("backup completed. \n\nbackupset: %s\npath: %s\nfrom_lsn: %s\nto_lsn: %s", bs.Id, bs.Path, bs.FromLSN, bs.ToLSN)
+	log.Printf("backup completed.\nbackupset: %s\npath: %s\nfrom_lsn: %s\nto_lsn: %s\nsize: %dbyte", bs.Id, bs.Path, bs.FromLSN, bs.ToLSN, bs.Size)
 	return nil
 }
 

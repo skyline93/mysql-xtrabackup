@@ -16,19 +16,19 @@ const (
 )
 
 type BackupSet2 struct {
-	Id      string
-	Path    string
-	Type    string
-	FromLSN string
-	ToLSN   string
-	Size    int64
+	Id      string `json:"id"`
+	Path    string `json:"path"`
+	Type    string `json:"type"`
+	FromLSN string `json:"from_lsn"`
+	ToLSN   string `json:"to_lsn"`
+	Size    int64  `json:"size"`
 }
 
 type Repository2 struct {
 	col    *stor.Collection
 	Config *Config
-	Path   string
-	Name   string
+	Path   string `json:"path"`
+	Name   string `json:"name"`
 }
 
 func NewBackupSet2(backupSetType string) *BackupSet2 {
