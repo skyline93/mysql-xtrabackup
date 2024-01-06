@@ -109,7 +109,6 @@ func (b *Backuper) Backup(repo *repository.Repository, backupType string) (err e
 		return err
 	}
 
-	bs.Path = targetPath
 	bs.FromLSN = checkpoints["from_lsn"]
 	bs.ToLSN = checkpoints["to_lsn"]
 	bs.Size = int64(size)
@@ -119,7 +118,7 @@ func (b *Backuper) Backup(repo *repository.Repository, backupType string) (err e
 		return err
 	}
 
-	log.Printf("backup completed.\nbackupset: %s\npath: %s\nfrom_lsn: %s\nto_lsn: %s\nsize: %dbyte", bs.Id, bs.Path, bs.FromLSN, bs.ToLSN, bs.Size)
+	log.Printf("backup completed.\nbackupset: %s\nfrom_lsn: %s\nto_lsn: %s\nsize: %dbyte", bs.Id, bs.FromLSN, bs.ToLSN, bs.Size)
 	return nil
 }
 

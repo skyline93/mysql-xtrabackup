@@ -62,7 +62,7 @@ func (r *Restorer) Restore(repo *repository.Repository, targetPath string, mysql
 		}
 
 		// 拷贝文件
-		cmd := exec.Command("cp", "-r", bs.Path, targetPath)
+		cmd := exec.Command("cp", "-r", filepath.Join(repo.DataPath(), bs.Id), targetPath)
 		log.Printf("run cmd: %s", cmd)
 		if err = cmd.Run(); err != nil {
 			return err

@@ -17,7 +17,6 @@ const (
 
 type BackupSet struct {
 	Id         string `json:"id"`
-	Path       string `json:"path"`
 	Type       string `json:"type"`
 	FromLSN    string `json:"from_lsn"`
 	ToLSN      string `json:"to_lsn"`
